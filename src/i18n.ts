@@ -1,0 +1,140 @@
+// All interface text lives here. French by default; English if the browser asks for it.
+
+const fr = {
+  appTitle: 'Album de famille',
+  addPhotos: 'Ajouter des photos',
+  addPhotosHint: 'Prendre une photo ou choisir dans la galerie',
+  back: 'Retour',
+  close: 'Fermer',
+  previous: 'Précédente',
+  next: 'Suivante',
+  loading: 'Chargement…',
+  retry: 'Réessayer',
+  errorGeneric: 'Une erreur est survenue. Vérifiez la connexion et réessayez.',
+
+  emptyAlbum: "L'album est vide. Ajoutez la première photo !",
+  noMatch: 'Aucune photo ne correspond à ces filtres.',
+  photoCount: (n: number) => (n === 1 ? '1 photo' : `${n} photos`),
+
+  filters: 'Rechercher',
+  hideFilters: 'Masquer la recherche',
+  whoFilter: 'Qui est sur la photo ?',
+  fromYear: 'De',
+  toYear: 'à',
+  anyYear: '—',
+  clearFilters: 'Tout effacer',
+  jumpToYear: 'Aller à l’année',
+
+  whoIsInPhoto: 'Qui est sur cette photo ?',
+  nobodyTagged: 'Personne n’est encore indiqué. Touchez un nom ci-dessous.',
+  addPerson: 'Ajouter une personne',
+  newPersonPlaceholder: 'Prénom et nom',
+  add: 'Ajouter',
+  cancel: 'Annuler',
+  saving: 'Enregistrement…',
+  saved: 'Enregistré',
+
+  date: 'Date',
+  dateFromCamera: 'date de l’appareil photo',
+  dateFromUpload: 'date d’ajout (inconnue)',
+  dateManual: 'date corrigée à la main',
+  changeDate: 'Corriger la date',
+  save: 'Enregistrer',
+  caption: 'Légende',
+  captionPlaceholder: 'Où ? Quelle occasion ? (facultatif)',
+  addedBy: (who: string, when: string) => `Ajoutée par ${who} le ${when}`,
+  downloadOriginal: 'Télécharger l’original',
+
+  uploadTitle: 'Ajouter des photos',
+  chooseMore: 'Ajouter d’autres photos',
+  preparing: 'Préparation…',
+  uploading: 'Envoi…',
+  uploaded: 'Ajoutée ✓',
+  duplicate: 'Déjà dans l’album',
+  failed: 'Échec',
+  tagThis: 'Qui est dessus ?',
+  allDone: 'Terminé !',
+  backToAlbum: 'Voir l’album',
+  keepPageOpen: 'Gardez cette page ouverte pendant l’envoi.',
+};
+
+type Strings = typeof fr;
+
+const en: Strings = {
+  appTitle: 'Family album',
+  addPhotos: 'Add photos',
+  addPhotosHint: 'Take a photo or choose from your gallery',
+  back: 'Back',
+  close: 'Close',
+  previous: 'Previous',
+  next: 'Next',
+  loading: 'Loading…',
+  retry: 'Try again',
+  errorGeneric: 'Something went wrong. Check your connection and try again.',
+
+  emptyAlbum: 'The album is empty. Add the first photo!',
+  noMatch: 'No photo matches these filters.',
+  photoCount: (n: number) => (n === 1 ? '1 photo' : `${n} photos`),
+
+  filters: 'Search',
+  hideFilters: 'Hide search',
+  whoFilter: 'Who is in the photo?',
+  fromYear: 'From',
+  toYear: 'to',
+  anyYear: '—',
+  clearFilters: 'Clear all',
+  jumpToYear: 'Jump to year',
+
+  whoIsInPhoto: 'Who is in this photo?',
+  nobodyTagged: 'Nobody is marked yet. Tap a name below.',
+  addPerson: 'Add a person',
+  newPersonPlaceholder: 'First and last name',
+  add: 'Add',
+  cancel: 'Cancel',
+  saving: 'Saving…',
+  saved: 'Saved',
+
+  date: 'Date',
+  dateFromCamera: 'camera date',
+  dateFromUpload: 'upload date (unknown)',
+  dateManual: 'corrected by hand',
+  changeDate: 'Fix the date',
+  save: 'Save',
+  caption: 'Caption',
+  captionPlaceholder: 'Where? What occasion? (optional)',
+  addedBy: (who: string, when: string) => `Added by ${who} on ${when}`,
+  downloadOriginal: 'Download original',
+
+  uploadTitle: 'Add photos',
+  chooseMore: 'Add more photos',
+  preparing: 'Preparing…',
+  uploading: 'Uploading…',
+  uploaded: 'Added ✓',
+  duplicate: 'Already in the album',
+  failed: 'Failed',
+  tagThis: 'Who is in it?',
+  allDone: 'Done!',
+  backToAlbum: 'See the album',
+  keepPageOpen: 'Keep this page open while uploading.',
+};
+
+export const lang = typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('en') ? 'en' : 'fr';
+export const t: Strings = lang === 'en' ? en : fr;
+export const locale = lang === 'en' ? 'en-GB' : 'fr-FR';
+
+/** "2019-07-14T15:32:10" -> "dimanche 14 juillet 2019" */
+export function formatDate(local: string, withWeekday = true): string {
+  const [y, m, d] = local.slice(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(locale, {
+    weekday: withWeekday ? 'long' : undefined,
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+/** "2019-07" -> "juillet 2019" */
+export function formatMonth(yearMonth: string): string {
+  const [y, m] = yearMonth.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+}

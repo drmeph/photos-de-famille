@@ -1,0 +1,14 @@
+# Cloudflare Pages configuration (used by `wrangler pages dev` and `wrangler pages deploy`).
+name = "album-familial"
+compatibility_date = "2026-10-01"
+pages_build_output_dir = "dist"
+
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "album-familial-photos"
+
+# Auth settings are NOT stored here. Set them in the Cloudflare dashboard
+# (Pages project > Settings > Variables and Secrets), see docs/AUTH.md:
+#   ACCESS_TEAM_DOMAIN + ACCESS_AUD   (Cloudflare Access, recommended)
+#   BASIC_AUTH_PASSWORD               (shared-password fallback, set as a secret)
+# For local development, copy .dev.vars.example to .dev.vars.

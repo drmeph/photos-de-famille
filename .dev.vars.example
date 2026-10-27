@@ -1,0 +1,4 @@
+# Local development only (`npm run dev`). Copy to .dev.vars — never deploy this.
+INSECURE_DEV_USER=dev@example.com
+# Or try the shared-password mode locally instead:
+# BASIC_AUTH_PASSWORD=test
