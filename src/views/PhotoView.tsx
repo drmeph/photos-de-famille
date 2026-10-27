@@ -3,7 +3,7 @@ import type { Person, PhotoMeta, TimelineEntry, UpdatePhotoRequest } from '../..
 import { api, imageUrl } from '../api';
 import { PersonChips } from '../components/PersonChips';
 import { addPerson, patchTimeline, type LoadState } from '../data';
-import { formatDate, locale, t } from '../i18n';
+import { albumTitle, formatDate, locale, t } from '../i18n';
 import { goBack, href, navigate } from '../router';
 
 interface Props {
@@ -117,7 +117,7 @@ export function PhotoView({ id, list, people }: Props) {
   };
 
   return (
-    <div class="overlay" ref={scroller} role="dialog" aria-modal="true" aria-label={t.appTitle}>
+    <div class="overlay" ref={scroller} role="dialog" aria-modal="true" aria-label={albumTitle}>
       <header class="topbar">
         <button type="button" class="btn" onClick={goBack}>
           ← {t.back}

@@ -6,9 +6,9 @@
   --surface: #ffffff;
   --text: #2b1d12;
   --muted: #6b5a4c;
-  --accent: #7a4b2a;
-  --accent-text: #ffffff;
-  --accent-soft: #f3e3d1;
+  --accent: #7a4b2a; /* replaced at startup by the family's ALBUM_COLOR */
+  --accent-text: #ffffff; /* ALBUM_COLOR is always dark enough for white text */
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, white);
   --border: #d8c6b3;
   --danger: #a3261b;
   --radius: 14px;
@@ -83,6 +83,11 @@ a { color: var(--accent); }
 
 /* ---------- timeline */
 
+.welcome {
+  margin: 0.75rem 1rem; padding: 0.9rem 1rem;
+  font-size: 1.1rem; white-space: pre-line;
+  background: var(--accent-soft); border-radius: var(--radius);
+}
 .filter-summary { margin: 0.5rem 1rem; font-weight: 600; }
 .year-jump, .year-select { display: flex; align-items: center; gap: 0.6rem; }
 .year-jump { margin: 0.75rem 1rem; }

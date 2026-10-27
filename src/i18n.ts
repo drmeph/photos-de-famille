@@ -1,7 +1,9 @@
-// All interface text lives here. French by default; English if the browser asks for it.
+// All interface text lives here. Which language is used comes from the family's
+// settings (ALBUM_LANGUAGE), or each visitor's browser when that is 'auto'.
+import { resolveLanguage, titleFor, type Language } from '../shared/config';
+import { config } from './config';
 
 const fr = {
-  appTitle: 'Album de famille',
   addPhotos: 'Ajouter des photos',
   addPhotosHint: 'Prendre une photo ou choisir dans la galerie',
   back: 'Retour',
@@ -61,7 +63,6 @@ const fr = {
 type Strings = typeof fr;
 
 const en: Strings = {
-  appTitle: 'Family album',
   addPhotos: 'Add photos',
   addPhotosHint: 'Take a photo or choose from your gallery',
   back: 'Back',
@@ -118,9 +119,14 @@ const en: Strings = {
   keepPageOpen: 'Keep this page open while uploading.',
 };
 
-export const lang = typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('en') ? 'en' : 'fr';
-export const t: Strings = lang === 'en' ? en : fr;
-export const locale = lang === 'en' ? 'en-GB' : 'fr-FR';
+const STRINGS: Record<Language, Strings> = { fr, en };
+const LOCALES: Record<Language, string> = { fr: 'fr-FR', en: 'en-GB' };
+
+export const lang: Language = resolveLanguage(config.language, navigator.languages?.[0] ?? navigator.language);
+export const t: Strings = STRINGS[lang];
+export const locale = LOCALES[lang];
+/** The family's album name, or the default one in this language. */
+export const albumTitle = titleFor(config, lang);
 
 /** "2019-07-14T15:32:10" -> "dimanche 14 juillet 2019" */
 export function formatDate(local: string, withWeekday = true): string {

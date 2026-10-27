@@ -1,4 +1,6 @@
-export interface Env {
+import type { ConfigVars } from '../shared/config';
+
+export interface Env extends ConfigVars {
   /** R2 bucket holding images and JSON metadata (binding name set in wrangler.toml). */
   PHOTOS: R2Bucket;
   /** Cloudflare Access: team domain, e.g. "my-family.cloudflareaccess.com". */

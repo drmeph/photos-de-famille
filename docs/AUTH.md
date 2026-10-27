@@ -24,12 +24,17 @@ Free for up to 50 people.
    email. To add someone later, add their email here. Nothing needs redeploying.
 5. **Copy the AUD tag**: open the application's overview and copy the
    *Application Audience (AUD) Tag*.
-6. **Tell the site**: in the Cloudflare dashboard, *Workers & Pages → album-familial →
-   Settings → Variables and Secrets*, add these for **Production** (and Preview):
-   - `ACCESS_TEAM_DOMAIN` = `famille-dupont.cloudflareaccess.com`
-   - `ACCESS_AUD` = the tag from step 5
+6. **Tell the site**: store both values as Pages secrets (each command asks for the value):
 
-   Then redeploy (`npm run deploy`).
+   ```sh
+   npx wrangler pages secret put ACCESS_TEAM_DOMAIN --project-name album-familial   # famille-dupont.cloudflareaccess.com
+   npx wrangler pages secret put ACCESS_AUD --project-name album-familial           # the tag from step 5
+   ```
+
+   Then redeploy (`npm run deploy`). Why secrets rather than plain variables: because the
+   project has a `wrangler.toml`, Cloudflare treats that file as the source of truth for
+   plain variables, so they can't be edited in the dashboard. Secrets can still be set from
+   the CLI, or in the dashboard as an *encrypted* variable.
 
 The site checks the token Access attaches to every request (signature, audience, expiry).
 If someone reaches the site without going through Access, they get *Forbidden*.

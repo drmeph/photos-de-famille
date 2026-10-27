@@ -3,7 +3,8 @@ import type { Person, TimelineEntry } from '../../shared/types';
 import { imageUrl } from '../api';
 import { AddPhotosButton } from '../components/AddPhotosButton';
 import { FilterPanel } from '../components/FilterPanel';
-import { formatDate, formatMonth, t } from '../i18n';
+import { config } from '../config';
+import { albumTitle, formatDate, formatMonth, t } from '../i18n';
 import { groupByMonth, isFiltering, yearsOf, type Filters } from '../lib/filter';
 import { href, linkClick } from '../router';
 
@@ -29,7 +30,7 @@ export function Timeline({ all, visible, people, filters, onFilters }: Props) {
   return (
     <main class="timeline">
       <header class="topbar">
-        <h1>{t.appTitle}</h1>
+        <h1>{albumTitle}</h1>
         <button
           type="button"
           class={showFilters || isFiltering(filters) ? 'btn btn-on' : 'btn'}
@@ -39,6 +40,8 @@ export function Timeline({ all, visible, people, filters, onFilters }: Props) {
           {showFilters ? t.hideFilters : `🔍 ${t.filters}`}
         </button>
       </header>
+
+      {config.welcome && !isFiltering(filters) && <p class="welcome">{config.welcome}</p>}
 
       {showFilters && <FilterPanel people={people} years={allYears} filters={filters} onChange={onFilters} />}
 

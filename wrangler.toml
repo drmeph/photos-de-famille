@@ -7,8 +7,15 @@ pages_build_output_dir = "dist"
 binding = "PHOTOS"
 bucket_name = "album-familial-photos"
 
-# Auth settings are NOT stored here. Set them in the Cloudflare dashboard
-# (Pages project > Settings > Variables and Secrets), see docs/AUTH.md:
-#   ACCESS_TEAM_DOMAIN + ACCESS_AUD   (Cloudflare Access, recommended)
-#   BASIC_AUTH_PASSWORD               (shared-password fallback, set as a secret)
+# Sign-in and family settings are NOT stored here (this file is public). Set them as secrets:
+#   npx wrangler pages secret put <NAME> --project-name album-familial
+# Sign-in (docs/AUTH.md):          ACCESS_TEAM_DOMAIN + ACCESS_AUD, or BASIC_AUTH_PASSWORD
+# Family (docs/CONFIGURATION.md):  ALBUM_TITLE, ALBUM_LANGUAGE, ALBUM_COLOR, ALBUM_WELCOME
 # For local development, copy .dev.vars.example to .dev.vars.
+#
+# If you don't mind your family settings being public in your fork, uncomment instead:
+# [vars]
+# ALBUM_TITLE = "Album de la famille Martin"
+# ALBUM_LANGUAGE = "fr"
+# ALBUM_COLOR = "#1f4e79"
+# ALBUM_WELCOME = "Bienvenue ! Ajoutez vos souvenirs."

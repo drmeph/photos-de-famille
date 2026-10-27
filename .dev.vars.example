@@ -2,3 +2,9 @@
 INSECURE_DEV_USER=dev@example.com
 # Or try the shared-password mode locally instead:
 # BASIC_AUTH_PASSWORD=test
+
+# Family settings (docs/CONFIGURATION.md). Quote values containing "#": it starts a comment here.
+# ALBUM_TITLE="Album de la famille Martin"
+# ALBUM_LANGUAGE=fr
+# ALBUM_COLOR="#1f4e79"
+# ALBUM_WELCOME="Bienvenue ! Ajoutez vos souvenirs."
