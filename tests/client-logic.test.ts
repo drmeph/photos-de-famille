@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyFilters, groupByMonth, yearsOf } from '../src/lib/filter';
+import { applyFilters, groupByYear, yearsOf } from '../src/lib/filter';
 import { parseExifDate } from '../src/lib/dates';
 import type { TimelineEntry } from '../shared/types';
 
@@ -22,13 +22,15 @@ describe('filters', () => {
     expect(applyFilters(photos, { people: ['paul'], fromYear: 2020, toYear: null }).map((p) => p.id)).toEqual(['1']);
   });
 
-  it('groups by month and lists years', () => {
-    expect(groupByMonth(photos).map((g) => [g.key, g.photos.length])).toEqual([
-      ['2020-08', 2],
-      ['2020-03', 1],
-      ['1985-12', 1],
-    ]);
+  it('lists distinct years, newest first', () => {
     expect(yearsOf(photos)).toEqual([2020, 1985]);
+  });
+
+  it('groups by year, keeping the order', () => {
+    expect(groupByYear(photos).map((y) => [y.year, y.photos.map((p) => p.id)])).toEqual([
+      ['2020', ['1', '2', '3']],
+      ['1985', ['4']],
+    ]);
   });
 });
 

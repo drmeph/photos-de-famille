@@ -11,6 +11,9 @@ included, so ease of use comes first and there's not much else to it.
 - **Who's in it**: anyone can tap names to tag or untag people, or add a new name.
 - **Search**: filter by one or more people and/or a range of years.
 - **Private**: only invited family members get in (Cloudflare Access, or a shared password).
+- **Designed for everyone**: warm and readable on phone, tablet and desktop, with big buttons
+  and text, set in [Atkinson Hyperlegible](https://www.brailleinstitute.org/freefont/) (a font
+  made for readers with low vision) and Fraunces for titles.
 
 It's open source and meant to be reused: each family sets its own album name, language, color
 and welcome message without touching the code (see [docs/CONFIGURATION.md](docs/CONFIGURATION.md)).
@@ -44,7 +47,8 @@ domain, inviting the family, backups and troubleshooting.
 ```
 src/            Browser app (Preact + TypeScript, built by Vite)
   views/          Timeline, PhotoView (detail + tagging), UploadView
-  components/     PersonChips, FilterPanel, AddPhotosButton
+  components/     PersonChips, FilterPanel, YearNav, AddPhotosButton, Icon
+  styles.css      The whole look: colors, type, responsive layout (700px / 1100px breakpoints)
   lib/image.ts    HEIC decoding, EXIF date, resizing, content hash, all done in the browser
   i18n.ts         All interface text (French and English; see ALBUM_LANGUAGE)
   config.ts       Reads the family settings embedded in the page

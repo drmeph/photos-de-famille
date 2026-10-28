@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Person, PhotoMeta, TimelineEntry, UpdatePhotoRequest } from '../../shared/types';
 import { api, imageUrl } from '../api';
+import { Icon } from '../components/Icon';
 import { PersonChips } from '../components/PersonChips';
 import { addPerson, patchTimeline, type LoadState } from '../data';
-import { albumTitle, formatDate, locale, t } from '../i18n';
+import { albumTitle, formatDate, locale, t, yearsAgo } from '../i18n';
 import { goBack, href, navigate } from '../router';
 
 interface Props {
@@ -116,35 +117,44 @@ export function PhotoView({ id, list, people }: Props) {
     if (s.status === 'ready' && !s.data.people.includes(person.id)) togglePerson(person.id);
   };
 
-  return (
-    <div class="overlay" ref={scroller} role="dialog" aria-modal="true" aria-label={albumTitle}>
-      <header class="topbar">
-        <button type="button" class="btn" onClick={goBack}>
-          ← {t.back}
-        </button>
-        <span class="save-status" role="status">
-          {saving > 0 ? t.saving : saveError ? `⚠ ${t.errorGeneric}` : ''}
-        </span>
-      </header>
+  const position = pos >= 0 ? t.photoPosition(pos + 1, list.length) : '';
 
-      <div class="photo-stage" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-        <img key={id} src={imageUrl(id, 'display')} alt="" class="photo-full" />
+  return (
+    <div class="viewer" ref={scroller} role="dialog" aria-modal="true" aria-label={albumTitle}>
+      <div class="stage" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        {/* The blurred thumbnail (already cached from the timeline) fills the stage with the photo's colors. */}
+        <img src={imageUrl(id, 'thumb')} alt="" class="stage-glow" aria-hidden="true" />
+        <img key={id} src={imageUrl(id, 'display')} alt="" class="stage-photo" />
+
+        <div class="stage-bar">
+          <button type="button" class="btn btn-glass" onClick={goBack}>
+            <Icon name="back" />
+            <span>{t.back}</span>
+          </button>
+          <span class="stage-position">{position}</span>
+          <span class="save-status" role="status">
+            {saving > 0 ? t.saving : saveError ? t.errorGeneric : ''}
+          </span>
+        </div>
+        {prevId && (
+          <button type="button" class="stage-arrow stage-prev" aria-label={t.previous} onClick={() => go(prevId)}>
+            <Icon name="left" size={30} />
+          </button>
+        )}
+        {nextId && (
+          <button type="button" class="stage-arrow stage-next" aria-label={t.next} onClick={() => go(nextId)}>
+            <Icon name="right" size={30} />
+          </button>
+        )}
       </div>
 
-      <nav class="prevnext">
-        <button type="button" class="btn" disabled={!prevId} onClick={() => go(prevId)}>
-          ← {t.previous}
-        </button>
-        <button type="button" class="btn" disabled={!nextId} onClick={() => go(nextId)}>
-          {t.next} →
-        </button>
-      </nav>
-
-      {state.status === 'loading' && <p class="muted">{t.loading}</p>}
-      {state.status === 'error' && <p class="error">{t.errorGeneric}</p>}
-      {state.status === 'ready' && (
-        <Details meta={state.data} people={people} onToggle={togglePerson} onAddPerson={createAndTag} onUpdate={update} />
-      )}
+      <div class="details">
+        {state.status === 'loading' && <div class="details-loading" aria-label={t.loading} />}
+        {state.status === 'error' && <p class="error">{t.errorGeneric}</p>}
+        {state.status === 'ready' && (
+          <Details meta={state.data} people={people} onToggle={togglePerson} onAddPerson={createAndTag} onUpdate={update} />
+        )}
+      </div>
     </div>
   );
 }
@@ -161,11 +171,16 @@ function Details({ meta, people, onToggle, onAddPerson, onUpdate }: DetailsProps
   const [editingDate, setEditingDate] = useState(false);
   const [date, setDate] = useState(meta.takenAt.slice(0, 10));
   const [caption, setCaption] = useState(meta.caption);
+  const [editingCaption, setEditingCaption] = useState(false);
   useEffect(() => setCaption(meta.caption), [meta.id, meta.caption]);
   useEffect(() => setDate(meta.takenAt.slice(0, 10)), [meta.id, meta.takenAt]);
+  useEffect(() => {
+    setEditingDate(false);
+    setEditingCaption(false);
+  }, [meta.id]);
 
-  const tagged = meta.people.map((id) => people.find((p) => p.id === id)?.name ?? id);
   const dateNote = { exif: t.dateFromCamera, upload: t.dateFromUpload, manual: t.dateManual }[meta.dateSource];
+  const ago = yearsAgo(meta.takenAt);
 
   const saveDate = (e: Event) => {
     e.preventDefault();
@@ -175,61 +190,108 @@ function Details({ meta, people, onToggle, onAddPerson, onUpdate }: DetailsProps
     setEditingDate(false);
   };
 
+  const saveCaption = (e: Event) => {
+    e.preventDefault();
+    onUpdate({ caption }, (m) => ({ ...m, caption: caption.trim() }));
+    setEditingCaption(false);
+  };
+
   return (
-    <div class="details">
-      {meta.caption && <p class="caption-text">{meta.caption}</p>}
-
-      <section class="panel">
-        <h2>{t.whoIsInPhoto}</h2>
-        <p class={tagged.length ? 'tagged-names' : 'muted'}>{tagged.length ? tagged.join(', ') : t.nobodyTagged}</p>
-        <PersonChips people={people} selected={meta.people} onToggle={onToggle} onAdd={onAddPerson} />
-      </section>
-
-      <section class="panel">
-        <h2>{t.date}</h2>
+    <>
+      <section class="detail-block">
         {!editingDate ? (
           <>
-            <p class="big-text">{formatDate(meta.takenAt)}</p>
-            <p class="muted">({dateNote})</p>
-            <button type="button" class="btn" onClick={() => setEditingDate(true)}>
-              {t.changeDate}
+            <p class="photo-date">{formatDate(meta.takenAt)}</p>
+            <p class="muted">
+              {ago && <strong class="ago">{ago}</strong>}
+              {ago && ' · '}
+              {dateNote}
+            </p>
+            <button type="button" class="btn btn-ghost btn-small" onClick={() => setEditingDate(true)}>
+              <Icon name="pencil" size={18} />
+              <span>{t.changeDate}</span>
             </button>
           </>
         ) : (
-          <form class="inline-form" onSubmit={saveDate}>
-            <input type="date" value={date} max="2100-12-31" onInput={(e) => setDate(e.currentTarget.value)} required aria-label={t.date} />
-            <button type="submit" class="btn btn-primary">
-              {t.save}
-            </button>
-            <button type="button" class="btn" onClick={() => setEditingDate(false)}>
-              {t.cancel}
-            </button>
+          <form class="stack" onSubmit={saveDate}>
+            <label class="field">
+              <span class="field-label">{t.date}</span>
+              <input type="date" class="input" value={date} max="2100-12-31" onInput={(e) => setDate(e.currentTarget.value)} required />
+            </label>
+            <div class="row">
+              <button type="submit" class="btn btn-primary">
+                {t.save}
+              </button>
+              <button type="button" class="btn btn-ghost" onClick={() => setEditingDate(false)}>
+                {t.cancel}
+              </button>
+            </div>
           </form>
         )}
       </section>
 
-      <section class="panel">
-        <h2>{t.caption}</h2>
-        <textarea
-          rows={2}
-          maxLength={2000}
-          value={caption}
-          placeholder={t.captionPlaceholder}
-          aria-label={t.caption}
-          onInput={(e) => setCaption(e.currentTarget.value)}
-        />
-        {caption.trim() !== meta.caption && (
-          <button type="button" class="btn btn-primary" onClick={() => onUpdate({ caption }, (m) => ({ ...m, caption: caption.trim() }))}>
-            {t.save}
-          </button>
+      <section class="detail-block">
+        {!editingCaption ? (
+          meta.caption ? (
+            <button type="button" class="caption" onClick={() => setEditingCaption(true)}>
+              <span>{meta.caption}</span>
+              <Icon name="pencil" size={18} />
+            </button>
+          ) : (
+            <button type="button" class="btn btn-ghost btn-small" onClick={() => setEditingCaption(true)}>
+              <Icon name="plus" size={18} />
+              <span>{t.addCaption}</span>
+            </button>
+          )
+        ) : (
+          <form class="stack" onSubmit={saveCaption}>
+            <label class="field">
+              <span class="field-label">{t.caption}</span>
+              <textarea
+                class="input"
+                rows={3}
+                maxLength={2000}
+                value={caption}
+                placeholder={t.captionPlaceholder}
+                autoFocus
+                onInput={(e) => setCaption(e.currentTarget.value)}
+              />
+            </label>
+            <div class="row">
+              <button type="submit" class="btn btn-primary">
+                {t.save}
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost"
+                onClick={() => {
+                  setCaption(meta.caption);
+                  setEditingCaption(false);
+                }}
+              >
+                {t.cancel}
+              </button>
+            </div>
+          </form>
         )}
       </section>
 
-      <p class="muted">
-        {t.addedBy(meta.uploadedBy, new Date(meta.uploadedAt).toLocaleDateString(locale))}
-        {' · '}
-        <a href={`${imageUrl(meta.id, 'original')}?download=1`}>{t.downloadOriginal}</a>
-      </p>
-    </div>
+      <section class="detail-block">
+        <h2 class="side-title">
+          <Icon name="users" size={20} />
+          {t.onThisPhoto}
+        </h2>
+        {meta.people.length === 0 && <p class="muted">{t.tapToTag}</p>}
+        <PersonChips people={people} selected={meta.people} onToggle={onToggle} onAdd={onAddPerson} />
+      </section>
+
+      <footer class="detail-footer">
+        <p class="muted">{t.addedBy(meta.uploadedBy, new Date(meta.uploadedAt).toLocaleDateString(locale))}</p>
+        <a class="btn btn-ghost btn-small" href={`${imageUrl(meta.id, 'original')}?download=1`}>
+          <Icon name="download" size={18} />
+          <span>{t.downloadOriginal}</span>
+        </a>
+      </footer>
+    </>
   );
 }

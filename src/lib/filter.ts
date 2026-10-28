@@ -22,24 +22,24 @@ export function applyFilters(photos: TimelineEntry[], f: Filters): TimelineEntry
   );
 }
 
-export interface MonthGroup {
-  key: string; // "2019-07"
-  photos: TimelineEntry[];
-}
-
-/** Photos must already be sorted (newest first, as in index.json). */
-export function groupByMonth(photos: TimelineEntry[]): MonthGroup[] {
-  const groups: MonthGroup[] = [];
-  for (const e of photos) {
-    const key = e.t.slice(0, 7);
-    const last = groups[groups.length - 1];
-    if (last?.key === key) last.photos.push(e);
-    else groups.push({ key, photos: [e] });
-  }
-  return groups;
-}
-
 /** Distinct years, newest first. */
 export function yearsOf(photos: TimelineEntry[]): number[] {
   return [...new Set(photos.map(yearOf))].sort((a, b) => b - a);
+}
+
+export interface YearGroup {
+  year: string; // "1985"
+  photos: TimelineEntry[];
+}
+
+/** Photos must already be sorted (newest first). */
+export function groupByYear(photos: TimelineEntry[]): YearGroup[] {
+  const years: YearGroup[] = [];
+  for (const e of photos) {
+    const year = e.t.slice(0, 4);
+    const last = years[years.length - 1];
+    if (last?.year === year) last.photos.push(e);
+    else years.push({ year, photos: [e] });
+  }
+  return years;
 }

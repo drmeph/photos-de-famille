@@ -51,13 +51,25 @@ const fr = {
   chooseMore: 'Ajouter d’autres photos',
   preparing: 'Préparation…',
   uploading: 'Envoi…',
-  uploaded: 'Ajoutée ✓',
+  uploaded: 'Ajoutée',
   duplicate: 'Déjà dans l’album',
   failed: 'Échec',
   tagThis: 'Qui est dessus ?',
   allDone: 'Terminé !',
   backToAlbum: 'Voir l’album',
   keepPageOpen: 'Gardez cette page ouverte pendant l’envoi.',
+  emptyTitle: 'Votre album est prêt',
+  emptyText: 'Ajoutez les premières photos : celles de votre téléphone, ou de vieilles photos prises en photo.',
+  who: 'Qui ?',
+  when: 'Quand ?',
+  years: 'Années',
+  showResults: (n: number) => (n === 0 ? 'Aucune photo' : n === 1 ? 'Voir la photo' : `Voir les ${n} photos`),
+  removeFilter: (what: string) => `Retirer le filtre ${what}`,
+  photoPosition: (i: number, n: number) => `${i} sur ${n}`,
+  onThisPhoto: 'Sur cette photo',
+  tapToTag: 'Touchez les noms des personnes présentes.',
+  addCaption: 'Ajouter une légende',
+  uploadHint: 'Les photos sont ajoutées une par une. Vous pouvez continuer à regarder l’album.',
 };
 
 type Strings = typeof fr;
@@ -110,13 +122,25 @@ const en: Strings = {
   chooseMore: 'Add more photos',
   preparing: 'Preparing…',
   uploading: 'Uploading…',
-  uploaded: 'Added ✓',
+  uploaded: 'Added',
   duplicate: 'Already in the album',
   failed: 'Failed',
   tagThis: 'Who is in it?',
   allDone: 'Done!',
   backToAlbum: 'See the album',
   keepPageOpen: 'Keep this page open while uploading.',
+  emptyTitle: 'Your album is ready',
+  emptyText: 'Add the first photos: from your phone, or old prints you photograph.',
+  who: 'Who?',
+  when: 'When?',
+  years: 'Years',
+  showResults: (n: number) => (n === 0 ? 'No photos' : n === 1 ? 'See the photo' : `See ${n} photos`),
+  removeFilter: (what: string) => `Remove filter ${what}`,
+  photoPosition: (i: number, n: number) => `${i} of ${n}`,
+  onThisPhoto: 'In this photo',
+  tapToTag: 'Tap the names of the people in it.',
+  addCaption: 'Add a caption',
+  uploadHint: 'Photos are added one by one. You can keep browsing the album.',
 };
 
 const STRINGS: Record<Language, Strings> = { fr, en };
@@ -139,8 +163,11 @@ export function formatDate(local: string, withWeekday = true): string {
   });
 }
 
-/** "2019-07" -> "juillet 2019" */
-export function formatMonth(yearMonth: string): string {
-  const [y, m] = yearMonth.split('-').map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+/** "il y a 40 ans" / "40 years ago"; null for photos less than a year old. */
+export function yearsAgo(local: string): string | null {
+  const [y, m, d] = local.slice(0, 10).split('-').map(Number);
+  const now = new Date();
+  let years = now.getFullYear() - y;
+  if (now.getMonth() + 1 < m || (now.getMonth() + 1 === m && now.getDate() < d)) years--;
+  return years >= 1 ? new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(-years, 'year') : null;
 }
