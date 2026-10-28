@@ -33,25 +33,11 @@ local simulated R2 bucket in `.wrangler/state/`.
 npm run check   # typecheck + tests + production build
 ```
 
-## Deploy (first time)
+## Deploy
 
-```sh
-npx wrangler login
-npx wrangler r2 bucket create album-familial-photos
-npx wrangler pages project create album-familial --production-branch main
-```
-
-Next, **set up sign-in** by following [docs/AUTH.md](docs/AUTH.md). Until you do, the site
-refuses every request. Optionally, **personalize it** for your family (name, language, color,
-welcome message) with [docs/CONFIGURATION.md](docs/CONFIGURATION.md). Then:
-
-```sh
-npm run deploy
-```
-
-You can also connect the GitHub repo in the Cloudflare dashboard (Workers & Pages → Create →
-Pages → Connect to Git) with build command `npm run build` and output directory `dist`. The R2
-binding comes from `wrangler.toml` either way.
+[docs/DEPLOY.md](docs/DEPLOY.md) walks through the whole setup, about 30 minutes: storage,
+sign-in with Cloudflare Access, personalization, automatic deploys from GitHub, your own
+domain, inviting the family, backups and troubleshooting.
 
 ## Project layout
 
@@ -70,5 +56,6 @@ server/         API logic, kept framework-free so it can be unit-tested
 shared/types.ts Data model shared by browser and server
 shared/config.ts Family settings: defaults and validation
 tests/          Vitest tests (API with an in-memory R2 fake, auth, filters)
-docs/           Architecture, auth setup, configuration
+docs/           Deploy guide, configuration, sign-in, architecture
+.github/        Workflow: tests every PR, deploys every push to main
 ```

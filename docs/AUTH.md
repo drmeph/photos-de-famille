@@ -1,60 +1,44 @@
-# Sign-in setup
+# Sign-in
 
-The site refuses every request until one of these is configured.
+Every request (pages, scripts, photos, API) goes through `functions/_middleware.ts`, which
+lets it in only if one of these is configured and the visitor passes it. With nothing
+configured, the site refuses everyone (*Authentication is not configured*), so it can't be
+public by accident.
 
-## Option A: Cloudflare Access (recommended)
+| Mode | Turned on by | Who the visitor is |
+|---|---|---|
+| **Cloudflare Access** (recommended) | `ACCESS_TEAM_DOMAIN` + `ACCESS_AUD` | their email address |
+| **Shared family password** | `BASIC_AUTH_PASSWORD` | the name they type |
+| **Local development** | `INSECURE_DEV_USER` (in `.dev.vars` only) | that value |
 
-Family members type their email address and receive a 6-digit code by email. There's no
-password to remember, and you can let someone in (or out) by editing a list of emails.
-Free for up to 50 people.
+If several are set, the first in this table wins.
 
-1. **Create a Zero Trust team** (once): open <https://one.dash.cloudflare.com>, pick a team
-   name (e.g. `famille-dupont`), and choose the **Free** plan. Your team domain is
-   `famille-dupont.cloudflareaccess.com`.
-2. **Login method**: under *Settings → Authentication*, make sure **One-time PIN** is enabled
-   (it is by default). You can also add Google if most of the family uses Gmail.
-3. **Create the application**: *Access → Applications → Add an application → Self-hosted*.
-   - Name: `Album de famille`
-   - Session duration: **1 month**, so relatives don't have to log in every week.
-   - Public hostnames: add **all** the addresses the site answers on:
-     - your custom domain if you have one, e.g. `album.dupont.fr`
-     - `album-familial.pages.dev`
-     - `*.album-familial.pages.dev` (preview deployments)
-4. **Policy**: action **Allow**, rule **Include → Emails**, then list each family member's
-   email. To add someone later, add their email here. Nothing needs redeploying.
-5. **Copy the AUD tag**: open the application's overview and copy the
-   *Application Audience (AUD) Tag*.
-6. **Tell the site**: store both values as Pages secrets (each command asks for the value):
+## Cloudflare Access
 
-   ```sh
-   npx wrangler pages secret put ACCESS_TEAM_DOMAIN --project-name album-familial   # famille-dupont.cloudflareaccess.com
-   npx wrangler pages secret put ACCESS_AUD --project-name album-familial           # the tag from step 5
-   ```
+Setup is step 4 of [DEPLOY.md](DEPLOY.md#4-set-up-sign-in-with-cloudflare-access). Managing
+the family afterwards is in step 8 of the same guide.
 
-   Then redeploy (`npm run deploy`). Why secrets rather than plain variables: because the
-   project has a `wrangler.toml`, Cloudflare treats that file as the source of truth for
-   plain variables, so they can't be edited in the dashboard. Secrets can still be set from
-   the CLI, or in the dashboard as an *encrypted* variable.
+How the check works ([`server/auth.ts`](../server/auth.ts)): Access adds a signed token
+(JWT) to every request, as the `Cf-Access-Jwt-Assertion` header and the `CF_Authorization`
+cookie. The site downloads your team's public keys from
+`https://<team domain>/cdn-cgi/access/certs` and verifies the token's signature, audience
+(`ACCESS_AUD`), issuer and expiry. A visitor who reaches the site without passing through
+Access (for example on an address not listed in the Access application) has no valid
+token and gets *Forbidden*.
 
-The site checks the token Access attaches to every request (signature, audience, expiry).
-If someone reaches the site without going through Access, they get *Forbidden*.
+## Shared family password
 
-**What relatives see**: a Cloudflare page asking for their email → a code arrives by email →
-they type it → they're in for a month. Tip: on their phone, add the site to the home screen
-(Share → *Add to Home Screen*) so it opens like an app.
-
-## Option B: one shared family password (fallback)
-
-Simpler, but less safe: everyone shares one password, and you can't remove one person
-without changing it for all.
+Simpler than Access, but less safe: everyone shares one password, and you can't remove one
+person without changing it for all.
 
 ```sh
 npx wrangler pages secret put BASIC_AUTH_PASSWORD --project-name album-familial
+npm run deploy
 ```
 
-The browser shows its standard login box. Users type **their own name** as the username,
-which is recorded as "added by", and the shared password. Use a long passphrase. If
-`ACCESS_TEAM_DOMAIN`/`ACCESS_AUD` are set, Access takes priority and this password is ignored.
+The browser shows its standard login box. Each person types **their own name** as the
+username (it's recorded as "added by" on their photos) and the shared password. Use a long
+passphrase, e.g. four random words.
 
 ## Local development
 
