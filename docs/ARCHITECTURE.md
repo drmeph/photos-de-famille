@@ -51,7 +51,9 @@ width and recomputed on resize.
 
 ## Upload flow
 
-1. The user picks files. For each file, one at a time to save phone memory:
+1. The user picks files: the phone's picker (camera or library), or on desktop (a mouse or
+   trackpad as main pointer) a window where photos are dragged in from a folder, with a file
+   chooser as backup. For each file, one at a time to save phone memory:
    hash → read EXIF date → decode (native, or libheif WASM for HEIC on Chrome/Firefox) →
    draw into a 2048 px canvas → 480 px thumbnail.
 2. `GET /api/photos/<id>`: if the photo exists, show "already in the album".
