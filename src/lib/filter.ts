@@ -27,9 +27,15 @@ export function yearsOf(photos: TimelineEntry[]): number[] {
   return [...new Set(photos.map(yearOf))].sort((a, b) => b - a);
 }
 
+export interface MonthGroup {
+  key: string; // "1985-12"
+  photos: TimelineEntry[];
+}
+
 export interface YearGroup {
   year: string; // "1985"
   photos: TimelineEntry[];
+  months: MonthGroup[];
 }
 
 /** Photos must already be sorted (newest first). */
@@ -37,9 +43,13 @@ export function groupByYear(photos: TimelineEntry[]): YearGroup[] {
   const years: YearGroup[] = [];
   for (const e of photos) {
     const year = e.t.slice(0, 4);
-    const last = years[years.length - 1];
-    if (last?.year === year) last.photos.push(e);
-    else years.push({ year, photos: [e] });
+    const month = e.t.slice(0, 7);
+    let y = years[years.length - 1];
+    if (y?.year !== year) years.push((y = { year, photos: [], months: [] }));
+    y.photos.push(e);
+    const m = y.months[y.months.length - 1];
+    if (m?.key === month) m.photos.push(e);
+    else y.months.push({ key: month, photos: [e] });
   }
   return years;
 }

@@ -1,6 +1,7 @@
 // All /api/* routes. Kept framework-free so it can be unit-tested with a fake R2 bucket.
 //
-//   GET   /api/me                          -> { user }
+//   GET   /api/me                          -> { user, name }
+//   PUT   /api/me            {name}        -> { user, name } (display name shown with comments)
 //   GET   /api/timeline                    -> TimelineIndex (index.json)
 //   GET   /api/people                      -> PeopleFile
 //   POST  /api/people        {name}        -> Person (existing one if the name is already there)
@@ -9,19 +10,25 @@
 //   GET   /api/photos/:id                  -> PhotoMeta
 //   PATCH /api/photos/:id    UpdatePhotoRequest -> PhotoMeta
 //   GET   /api/photos/:id/:variant         -> image bytes (?download=1 for the original as attachment)
+//   POST  /api/photos/:id/comments  {text} -> PhotoMeta (needs a display name, see PUT /api/me)
+//   DELETE /api/photos/:id/comments/:cid   -> PhotoMeta (only the comment's author)
 //   POST  /api/admin/rebuild-index         -> { count } (regenerate index.json from meta/*.json)
 //
 // Uploads are raw PUTs streamed straight into R2 (no multipart parsing), which keeps
 // CPU time per request tiny and fits the Workers free plan.
 
 import {
+  COMMENT_MAX,
   LOCAL_DATETIME_RE,
+  NAME_MAX,
   PHOTO_ID_RE,
   VARIANTS,
   compareEntries,
   toTimelineEntry,
   type CreatePhotoRequest,
+  type Comment,
   type HistoryEntry,
+  type MembersFile,
   type PeopleFile,
   type Person,
   type PhotoMeta,
@@ -33,6 +40,7 @@ import type { Env } from './env';
 import {
   ConflictError,
   INDEX_KEY,
+  MEMBERS_KEY,
   META_PREFIX,
   PEOPLE_KEY,
   imageKey,
@@ -54,6 +62,8 @@ const ORIGINAL_TYPES = new Set([
   'image/avif',
 ]);
 const HISTORY_MAX = 50;
+const COMMENTS_MAX = 500; // per photo; far beyond what a family writes
+const COMMENT_ID_RE = /^[a-f0-9-]{8,36}$/;
 const PERSON_ID_RE = /^[a-z0-9-]{1,64}$/;
 
 class HttpError extends Error {
@@ -88,7 +98,15 @@ async function route(request: Request, env: Env, user: string): Promise<Response
   const method = request.method;
   const bucket = env.PHOTOS;
 
-  if (parts[0] === 'me' && parts.length === 1 && method === 'GET') return json({ user });
+  if (parts[0] === 'me' && parts.length === 1) {
+    if (method === 'GET') return json({ user, name: await displayName(bucket, user) });
+    if (method === 'PUT') return json({ user, name: await setDisplayName(bucket, user, await readBody(request)) });
+  }
+
+  if (parts[0] === 'photos' && parts[2] === 'comments' && PHOTO_ID_RE.test(parts[1] ?? '')) {
+    if (parts.length === 3 && method === 'POST') return json(await addComment(bucket, parts[1], await readBody(request), user), 201);
+    if (parts.length === 4 && method === 'DELETE') return json(await deleteComment(bucket, parts[1], parts[3], user));
+  }
 
   if (parts[0] === 'timeline' && parts.length === 1 && method === 'GET') {
     return serveJsonObject(request, bucket, INDEX_KEY, { v: 1, photos: [] } satisfies TimelineIndex);
@@ -254,6 +272,7 @@ async function createPhoto(bucket: R2Bucket, id: string, body: Record<string, un
     uploadedAt: now,
     uploadedBy: user,
     history: [{ at: now, by: user, action: 'upload' }],
+    comments: [],
   };
   await bucket.put(metaKey(id), JSON.stringify(meta), { httpMetadata: { contentType: 'application/json' } });
   await upsertIndexEntry(bucket, meta);
@@ -297,6 +316,67 @@ async function updatePhoto(bucket: R2Bucket, id: string, body: Record<string, un
       const entry: HistoryEntry = { at: new Date().toISOString(), by: user, action: changes.join(' ') };
       const history = [...m.history, entry].slice(-HISTORY_MAX);
       return { ...m, people, takenAt, dateSource, caption, history };
+    },
+  );
+  await upsertIndexEntry(bucket, meta);
+  return meta;
+}
+
+// ---------------------------------------------------------------- display names & comments
+
+/** The name someone chose, or, in shared-password mode, the name they signed in with. */
+async function displayName(bucket: R2Bucket, user: string): Promise<string | null> {
+  const members = await readJson<MembersFile>(bucket, MEMBERS_KEY);
+  return members?.names[user] ?? (user.includes('@') ? null : user);
+}
+
+async function setDisplayName(bucket: R2Bucket, user: string, body: Record<string, unknown>): Promise<string> {
+  const name = typeof body.name === 'string' ? body.name.trim().replace(/\s+/g, ' ') : '';
+  if (!name || name.length > NAME_MAX) throw new HttpError(400, `Name must be 1-${NAME_MAX} characters`);
+  await updateJson<MembersFile>(
+    bucket,
+    MEMBERS_KEY,
+    () => ({ v: 1, names: {} }),
+    (file) => (file.names[user] === name ? null : { ...file, names: { ...file.names, [user]: name } }),
+  );
+  return name;
+}
+
+async function addComment(bucket: R2Bucket, id: string, body: Record<string, unknown>, user: string) {
+  const text = typeof body.text === 'string' ? body.text.trim() : '';
+  if (!text || text.length > COMMENT_MAX) throw new HttpError(400, `Comment must be 1-${COMMENT_MAX} characters`);
+  const name = await displayName(bucket, user);
+  if (!name) throw new HttpError(400, 'Choose a display name first');
+  const comment: Comment = { id: crypto.randomUUID(), by: user, name, at: new Date().toISOString(), text };
+  const meta = await updateJson<PhotoMeta>(
+    bucket,
+    metaKey(id),
+    () => {
+      throw new HttpError(404, 'Photo not found');
+    },
+    (m) => {
+      const comments = m.comments ?? [];
+      if (comments.length >= COMMENTS_MAX) throw new HttpError(409, 'Too many comments on this photo');
+      return { ...m, comments: [...comments, comment] };
+    },
+  );
+  await upsertIndexEntry(bucket, meta);
+  return meta;
+}
+
+async function deleteComment(bucket: R2Bucket, id: string, commentId: string, user: string) {
+  if (!COMMENT_ID_RE.test(commentId)) throw new HttpError(400, 'Bad comment id');
+  const meta = await updateJson<PhotoMeta>(
+    bucket,
+    metaKey(id),
+    () => {
+      throw new HttpError(404, 'Photo not found');
+    },
+    (m) => {
+      const comment = m.comments?.find((c) => c.id === commentId);
+      if (!comment) return null; // already gone: nothing to do
+      if (comment.by !== user) throw new HttpError(403, 'Only the author can delete a comment');
+      return { ...m, comments: m.comments!.filter((c) => c.id !== commentId) };
     },
   );
   await upsertIndexEntry(bucket, meta);

@@ -33,10 +33,20 @@ const sendJson = (method: string, body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 
+/** Who is signed in, and the name they chose to show with their comments (null until chosen). */
+export interface Me {
+  user: string;
+  name: string | null;
+}
+
 export const imageUrl = (id: string, variant: Variant) => `/api/photos/${id}/${variant}`;
 
 export const api = {
-  me: () => call<{ user: string }>('me'),
+  me: () => call<Me>('me'),
+  setName: (name: string) => call<Me>('me', sendJson('PUT', { name })),
+  addComment: (id: string, text: string) => call<PhotoMeta>(`photos/${id}/comments`, sendJson('POST', { text })),
+  deleteComment: (id: string, commentId: string) =>
+    call<PhotoMeta>(`photos/${id}/comments/${commentId}`, { method: 'DELETE' }),
   timeline: () => call<TimelineIndex>('timeline'),
   people: () => call<PeopleFile>('people'),
   addPerson: (name: string) => call<Person>('people', sendJson('POST', { name })),

@@ -26,10 +26,10 @@ describe('filters', () => {
     expect(yearsOf(photos)).toEqual([2020, 1985]);
   });
 
-  it('groups by year, keeping the order', () => {
-    expect(groupByYear(photos).map((y) => [y.year, y.photos.map((p) => p.id)])).toEqual([
-      ['2020', ['1', '2', '3']],
-      ['1985', ['4']],
+  it('groups by year, then month, keeping the order', () => {
+    expect(groupByYear(photos).map((y) => [y.year, y.photos.map((p) => p.id), y.months.map((m) => m.key)])).toEqual([
+      ['2020', ['1', '2', '3'], ['2020-08', '2020-03']],
+      ['1985', ['4'], ['1985-12']],
     ]);
   });
 });

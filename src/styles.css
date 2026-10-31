@@ -260,22 +260,38 @@ textarea.input { resize: vertical; line-height: 1.45; }
   font-variant-numeric: lining-nums;
 }
 .year-count { color: var(--ink-soft); font-weight: 650; font-size: 0.95rem; }
-/* Justified rows: each tile grows in proportion to its width/height ratio (--r),
-   so every row is filled edge to edge and photos keep their real shape. */
-.grid { display: flex; flex-wrap: wrap; gap: 6px; }
-.grid::after { content: ''; flex: 1e6 1 0; } /* soaks up the last row's spare room so it isn't stretched */
+/* Months: tile sizes come from lib/layout.ts. Small months share a line; big ones get their own rows. */
+.year-photos { display: grid; gap: 22px; }
+.month-line { display: flex; align-items: flex-start; }
+.month { flex: none; min-width: 0; }
+.month-title {
+  margin: 0 0 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-family: var(--font-display); font-style: italic; font-weight: 500; font-size: 1.1rem; color: var(--ink-soft);
+}
+.month-title::first-letter { text-transform: uppercase; }
+.month-row { display: flex; }
+
 .tile {
-  position: relative; display: block; overflow: hidden;
-  flex: calc(var(--r) * 100) 1 calc(var(--r) * var(--row));
-  aspect-ratio: var(--r);
+  position: relative; display: block; flex: none; overflow: hidden;
   border-radius: var(--radius-s); background: var(--accent-soft); box-shadow: var(--shadow-s);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
+
+/* Loading skeleton: tiles grow in proportion to their shape (--r) to fill each row. */
+.grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.grid .tile { flex: calc(var(--r) * 100) 1 calc(var(--r) * var(--row)); aspect-ratio: var(--r); }
 .tile img {
   display: block; width: 100%; height: 100%; object-fit: cover;
   opacity: 0; transition: opacity 0.5s ease;
 }
 .tile img.is-loaded { opacity: 1; }
+.tile-badge {
+  position: absolute; right: 6px; bottom: 6px;
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  padding: 0.15rem 0.5rem 0.15rem 0.4rem; border-radius: 999px;
+  font-size: 0.8rem; font-weight: 800; color: #fff; background: rgb(20 15 10 / 0.55);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
 @media (hover: hover) {
   .tile:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
 }
@@ -374,6 +390,33 @@ textarea.input { resize: vertical; line-height: 1.45; }
 }
 .details-loading { height: 220px; border-radius: var(--radius); }
 
+/* Comments */
+.count-badge {
+  min-width: 26px; height: 26px; padding: 0 8px; border-radius: 999px;
+  display: inline-grid; place-items: center;
+  font-family: var(--font-body); font-size: 0.85rem; font-weight: 800; color: var(--accent); background: var(--accent-soft);
+}
+.comment-list { list-style: none; margin: 0 0 1rem; padding: 0; display: grid; gap: 1rem; }
+.comment { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 0.75rem; align-items: start; }
+.comment-meta { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.6rem; }
+.comment-meta time { color: var(--ink-soft); font-size: 0.9rem; }
+.comment-text {
+  margin: 0.3rem 0 0; padding: 0.65rem 0.9rem;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 4px var(--radius) var(--radius) var(--radius);
+}
+.link-btn.is-quiet { color: var(--ink-soft); text-decoration: none; font-size: 0.88rem; }
+.composer { display: grid; gap: 0.6rem; }
+.composer > .btn { justify-self: start; }
+.commenting-as { font-size: 0.95rem; }
+.field-hint { font-size: 0.88rem; }
+.link-btn {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  min-height: 40px; padding: 0 0.25rem; margin-top: 0.15rem;
+  font: inherit; font-size: 0.92rem; font-weight: 650; color: var(--accent);
+  background: none; border: none; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+}
+
 /* ------------------------------------------------------------------ upload modal */
 
 .modal-layer { position: fixed; inset: 0; z-index: 60; display: grid; }
@@ -455,6 +498,7 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 99px; }
   .content { padding: 20px var(--gutter) 64px; }
   .grid { gap: 8px; }
   .year-section + .year-section { margin-top: 36px; }
+  .year-photos { gap: 30px; }
 
   .sidebar { width: min(560px, 92vw); margin: 0 auto; }
 

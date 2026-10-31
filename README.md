@@ -30,8 +30,11 @@ family one shared place for them that:
 
 - **Add photos** from the camera or the photo library. iPhone HEIC photos work, and the same
   photo added twice is detected.
-- **A timeline by year**, using the date each photo was taken. Old scans with a wrong date can
-  be corrected by anyone.
+- **A timeline by year and month**, using the date each photo was taken. Months with only a
+  photo or two sit side by side, so sparse old years stay compact. Old scans with a wrong date
+  can be corrected by anyone.
+- **Comments** under each photo, to share memories ("that was the year of the big snow…").
+  Photos with comments show a small 💬 badge in the timeline.
 - **Who's in it**: tap names to tag people. The whole family can help identify faces.
 - **Search** by one or more people and a range of years.
 - **Captions**, a short change history on each photo, and the original file always downloadable.
@@ -163,7 +166,8 @@ Issues and pull requests are welcome. A few principles keep the project useful f
 ### Not supported yet
 
 Ideas that would fit well: deleting or hiding photos (left out of v1 on purpose, to avoid
-accidents), videos, more languages, and suggested tags from a face-recognition batch job.
+accidents), email notifications for new comments, videos, more languages, and suggested tags
+from a face-recognition batch job.
 
 ## Privacy and security
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Person, PhotoMeta, TimelineEntry, UpdatePhotoRequest } from '../../shared/types';
 import { api, imageUrl } from '../api';
 import { Icon } from '../components/Icon';
+import { Comments } from '../components/Comments';
 import { PersonChips } from '../components/PersonChips';
 import { addPerson, patchTimeline, type LoadState } from '../data';
 import { albumTitle, formatDate, locale, t, yearsAgo } from '../i18n';
@@ -74,15 +75,16 @@ export function PhotoView({ id, list, people }: Props) {
   const pending = useRef(0);
 
   /** Apply a change locally right away, then save. Saves run one after another so
-   *  quick taps reach the server in order; the server's answer is shown once all are done. */
-  const update = (change: UpdatePhotoRequest, local: (m: PhotoMeta) => PhotoMeta) => {
+   *  quick taps reach the server in order; the server's answer is shown once all are done.
+   *  Resolves to whether this save succeeded. */
+  const save = (send: () => Promise<PhotoMeta>, local: (m: PhotoMeta) => PhotoMeta = (m) => m): Promise<boolean> => {
     const s = current.current;
-    if (s.status !== 'ready') return;
+    if (s.status !== 'ready') return Promise.resolve(false);
     setState({ status: 'ready', data: local(s.data) });
     pending.current++;
     setSaving(pending.current);
     setSaveError(false);
-    const run = queue.current.then(() => api.updatePhoto(id, change));
+    const run = queue.current.then(send);
     queue.current = run.catch(() => undefined);
     const done = (meta: PhotoMeta | null) => {
       pending.current--;
@@ -95,11 +97,19 @@ export function PhotoView({ id, list, people }: Props) {
         () => undefined,
       );
     };
-    run.then(done, () => {
-      setSaveError(true);
-      done(null);
-    });
+    return run.then(
+      (meta) => {
+        done(meta);
+        return true;
+      },
+      () => {
+        setSaveError(true);
+        done(null);
+        return false;
+      },
+    );
   };
+  const update = (change: UpdatePhotoRequest, local: (m: PhotoMeta) => PhotoMeta) => void save(() => api.updatePhoto(id, change), local);
 
   const togglePerson = (personId: string) => {
     const s = current.current;
@@ -152,7 +162,11 @@ export function PhotoView({ id, list, people }: Props) {
         {state.status === 'loading' && <div class="details-loading" aria-label={t.loading} />}
         {state.status === 'error' && <p class="error">{t.errorGeneric}</p>}
         {state.status === 'ready' && (
-          <Details meta={state.data} people={people} onToggle={togglePerson} onAddPerson={createAndTag} onUpdate={update} />
+          <>
+            <Details meta={state.data} people={people} onToggle={togglePerson} onAddPerson={createAndTag} onUpdate={update} />
+            <Comments meta={state.data} save={save} />
+            <PhotoFooter meta={state.data} />
+          </>
         )}
       </div>
     </div>
@@ -284,14 +298,18 @@ function Details({ meta, people, onToggle, onAddPerson, onUpdate }: DetailsProps
         {meta.people.length === 0 && <p class="muted">{t.tapToTag}</p>}
         <PersonChips people={people} selected={meta.people} onToggle={onToggle} onAdd={onAddPerson} />
       </section>
-
-      <footer class="detail-footer">
-        <p class="muted">{t.addedBy(meta.uploadedBy, new Date(meta.uploadedAt).toLocaleDateString(locale))}</p>
-        <a class="btn btn-ghost btn-small" href={`${imageUrl(meta.id, 'original')}?download=1`}>
-          <Icon name="download" size={18} />
-          <span>{t.downloadOriginal}</span>
-        </a>
-      </footer>
     </>
+  );
+}
+
+function PhotoFooter({ meta }: { meta: PhotoMeta }) {
+  return (
+    <footer class="detail-footer">
+      <p class="muted">{t.addedBy(meta.uploadedBy, new Date(meta.uploadedAt).toLocaleDateString(locale))}</p>
+      <a class="btn btn-ghost btn-small" href={`${imageUrl(meta.id, 'original')}?download=1`}>
+        <Icon name="download" size={18} />
+        <span>{t.downloadOriginal}</span>
+      </a>
+    </footer>
   );
 }

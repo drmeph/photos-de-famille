@@ -70,6 +70,19 @@ const fr = {
   tapToTag: 'Touchez les noms des personnes présentes.',
   addCaption: 'Ajouter une légende',
   uploadHint: 'Les photos sont ajoutées une par une. Vous pouvez continuer à regarder l’album.',
+  comments: 'Commentaires',
+  commentCount: (n: number) => (n === 1 ? '1 commentaire' : `${n} commentaires`),
+  noComments: 'Pas encore de commentaire. Racontez un souvenir !',
+  writeComment: 'Écrire un commentaire…',
+  publish: 'Publier',
+  publishing: 'Envoi…',
+  deleteComment: 'Supprimer',
+  confirmDeleteComment: 'Supprimer ce commentaire ?',
+  yourName: 'Votre prénom',
+  yourNameHint: 'Il sera affiché avec vos commentaires.',
+  commentingAs: (name: string) => `En tant que ${name}`,
+  changeName: 'Modifier',
+  justNow: 'à l’instant',
 };
 
 type Strings = typeof fr;
@@ -141,6 +154,19 @@ const en: Strings = {
   tapToTag: 'Tap the names of the people in it.',
   addCaption: 'Add a caption',
   uploadHint: 'Photos are added one by one. You can keep browsing the album.',
+  comments: 'Comments',
+  commentCount: (n: number) => (n === 1 ? '1 comment' : `${n} comments`),
+  noComments: 'No comments yet. Share a memory!',
+  writeComment: 'Write a comment…',
+  publish: 'Post',
+  publishing: 'Posting…',
+  deleteComment: 'Delete',
+  confirmDeleteComment: 'Delete this comment?',
+  yourName: 'Your first name',
+  yourNameHint: 'It will be shown with your comments.',
+  commentingAs: (name: string) => `As ${name}`,
+  changeName: 'Change',
+  justNow: 'just now',
 };
 
 const STRINGS: Record<Language, Strings> = { fr, en };
@@ -170,4 +196,21 @@ export function yearsAgo(local: string): string | null {
   let years = now.getFullYear() - y;
   if (now.getMonth() + 1 < m || (now.getMonth() + 1 === m && now.getDate() < d)) years--;
   return years >= 1 ? new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(-years, 'year') : null;
+}
+
+/** "2019-07" -> "juillet" (or "juil." when short) */
+export function formatMonthName(yearMonth: string, short = false): string {
+  const [y, m] = yearMonth.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString(locale, { month: short ? 'short' : 'long' });
+}
+
+/** "il y a 3 jours" / "3 days ago"; the date itself for anything older than four weeks. */
+export function timeAgo(iso: string): string {
+  const seconds = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (seconds < 60) return t.justNow;
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+  if (seconds < 3600) return rtf.format(-Math.floor(seconds / 60), 'minute');
+  if (seconds < 86400) return rtf.format(-Math.floor(seconds / 3600), 'hour');
+  if (seconds < 28 * 86400) return rtf.format(-Math.floor(seconds / 86400), 'day');
+  return new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
 }

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { handleApi, rebuildIndex, slugify } from '../server/api';
 import type { Env } from '../server/env';
-import { INDEX_KEY } from '../server/storage';
+import { INDEX_KEY, metaKey } from '../server/storage';
 import type { PeopleFile, PhotoMeta, TimelineIndex } from '../shared/types';
 import { FakeR2, asBucket } from './fake-r2';
 
@@ -10,7 +10,7 @@ const ID2 = 'b'.repeat(20);
 let r2: FakeR2;
 let env: Env;
 
-function req(method: string, path: string, body?: unknown, headers: Record<string, string> = {}) {
+function req(method: string, path: string, body?: unknown, headers: Record<string, string> = {}, user = 'mamie@example.com') {
   const init: RequestInit = { method, headers: { ...headers } };
   if (body instanceof Uint8Array) {
     init.body = body;
@@ -19,7 +19,7 @@ function req(method: string, path: string, body?: unknown, headers: Record<strin
     init.body = JSON.stringify(body);
     (init.headers as Record<string, string>)['Content-Type'] = 'application/json';
   }
-  return handleApi(new Request(`https://album.test/api/${path}`, init), env, 'mamie@example.com');
+  return handleApi(new Request(`https://album.test/api/${path}`, init), env, user);
 }
 
 async function uploadPhoto(id: string, takenAt = '2019-07-14T15:32:10') {
@@ -204,5 +204,84 @@ describe('slugify', () => {
   it('strips accents and punctuation', () => {
     expect(slugify('Grand-père Émile')).toBe('grand-pere-emile');
     expect(slugify('!!!')).toBe('personne');
+  });
+});
+
+describe('display names and comments', () => {
+  const asPapi = (method: string, path: string, body?: unknown) => req(method, path, body, {}, 'papi@example.com');
+
+  it('stores the display name each person chooses', async () => {
+    expect(await (await req('GET', 'me')).json()).toEqual({ user: 'mamie@example.com', name: null });
+    await req('PUT', 'me', { name: '  Mamie   Rose ' });
+    expect(await (await req('GET', 'me')).json()).toEqual({ user: 'mamie@example.com', name: 'Mamie Rose' });
+    expect((await req('PUT', 'me', { name: '' })).status).toBe(400);
+  });
+
+  it('asks for a display name before the first comment', async () => {
+    await uploadPhoto(ID);
+    const res = await req('POST', `photos/${ID}/comments`, { text: 'Coucou' });
+    expect(res.status).toBe(400);
+  });
+
+  it('adds comments, counts them in the timeline, and lets only the author delete', async () => {
+    await uploadPhoto(ID);
+    await req('PUT', 'me', { name: 'Mamie' });
+    await asPapi('PUT', 'me', { name: 'Papi' });
+
+    let meta = (await (await req('POST', `photos/${ID}/comments`, { text: '  Quel beau Noël !  ' })).json()) as PhotoMeta;
+    meta = (await (await asPapi('POST', `photos/${ID}/comments`, { text: 'On était 14 à table.' })).json()) as PhotoMeta;
+    expect(meta.comments!.map((c) => [c.name, c.text])).toEqual([
+      ['Mamie', 'Quel beau Noël !'],
+      ['Papi', 'On était 14 à table.'],
+    ]);
+    expect((r2.json(INDEX_KEY) as TimelineIndex).photos[0].c).toBe(2);
+
+    const mamies = meta.comments![0].id;
+    expect((await asPapi('DELETE', `photos/${ID}/comments/${mamies}`)).status).toBe(403);
+    meta = (await (await req('DELETE', `photos/${ID}/comments/${mamies}`)).json()) as PhotoMeta;
+    expect(meta.comments!.map((c) => c.name)).toEqual(['Papi']);
+    expect((r2.json(INDEX_KEY) as TimelineIndex).photos[0].c).toBe(1);
+  });
+
+  it('rejects empty or overly long comments', async () => {
+    await uploadPhoto(ID);
+    await req('PUT', 'me', { name: 'Mamie' });
+    expect((await req('POST', `photos/${ID}/comments`, { text: '   ' })).status).toBe(400);
+    expect((await req('POST', `photos/${ID}/comments`, { text: 'x'.repeat(2001) })).status).toBe(400);
+  });
+
+  it('keeps both comments when two people post at the same time', async () => {
+    await uploadPhoto(ID);
+    await req('PUT', 'me', { name: 'Mamie' });
+    await asPapi('PUT', 'me', { name: 'Papi' });
+    let raced = false;
+    r2.beforePut = async (key) => {
+      if (key === `meta/${ID}.json` && !raced) {
+        raced = true;
+        r2.beforePut = undefined;
+        await asPapi('POST', `photos/${ID}/comments`, { text: 'Papi was here' });
+      }
+    };
+    await req('POST', `photos/${ID}/comments`, { text: 'Mamie was here' });
+    const meta = (await (await req('GET', `photos/${ID}`)).json()) as PhotoMeta;
+    expect(meta.comments!.map((c) => c.text).sort()).toEqual(['Mamie was here', 'Papi was here']);
+  });
+
+  it('works on photos saved before comments existed', async () => {
+    await uploadPhoto(ID);
+    const old = r2.json(metaKey(ID)) as PhotoMeta;
+    delete old.comments;
+    await r2.put(metaKey(ID), JSON.stringify(old));
+    await req('PUT', 'me', { name: 'Mamie' });
+    const res = await req('POST', `photos/${ID}/comments`, { text: 'Toujours là' });
+    expect(res.status).toBe(201);
+    expect(((await res.json()) as PhotoMeta).comments).toHaveLength(1);
+  });
+});
+
+describe('shared-password mode', () => {
+  it('uses the sign-in name as display name', async () => {
+    const res = await handleApi(new Request('https://album.test/api/me'), env, 'Tante Hélène');
+    expect(await res.json()).toEqual({ user: 'Tante Hélène', name: 'Tante Hélène' });
   });
 });

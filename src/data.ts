@@ -1,6 +1,6 @@
 // App-wide data: the timeline index, the people list, and the upload queue.
 import { compareEntries, toTimelineEntry, type Person, type PhotoMeta, type TimelineEntry } from '../shared/types';
-import { api } from './api';
+import { api, type Me } from './api';
 import { preparePhoto } from './lib/image';
 import { createStore } from './lib/store';
 
@@ -8,6 +8,19 @@ export type LoadState<T> = { status: 'loading' } | { status: 'error' } | { statu
 
 export const timeline = createStore<LoadState<TimelineEntry[]>>({ status: 'loading' });
 export const people = createStore<Person[]>([]);
+export const me = createStore<Me | null>(null);
+
+export async function loadMe() {
+  try {
+    me.set(await api.me());
+  } catch {
+    // Non-fatal: comments will ask again when needed.
+  }
+}
+
+export async function setMyName(name: string) {
+  me.set(await api.setName(name));
+}
 
 export async function loadTimeline() {
   try {
