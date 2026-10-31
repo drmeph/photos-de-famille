@@ -34,12 +34,22 @@ describe('parseConfig', () => {
     expect(warnings).toHaveLength(4);
   });
 
-  it('refuses colors too pale to read on white', () => {
-    const { config, warnings } = parseConfig({ ALBUM_COLOR: '#ffd700' }); // gold
-    expect(config.color).toBe(DEFAULT_CONFIG.color);
+  it('darkens colors too pale to read on white, keeping their hue', () => {
+    const { config, warnings } = parseConfig({ ALBUM_COLOR: '#2e8b57' }); // sea green: contrast 4.1
+    expect(config.color).not.toBe('#2e8b57');
+    expect(contrastWithWhite(config.color)).toBeGreaterThanOrEqual(4.5);
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(config.color.slice(i, i + 2), 16));
+    expect(g).toBeGreaterThan(r); // still green
+    expect(g).toBeGreaterThan(b);
     expect(warnings[0]).toContain('too light');
+    expect(contrastWithWhite(parseConfig({ ALBUM_COLOR: '#ffd700' }).config.color)).toBeGreaterThanOrEqual(4.5); // gold
     expect(contrastWithWhite('#000000')).toBeCloseTo(21);
     expect(contrastWithWhite(DEFAULT_CONFIG.color)).toBeGreaterThan(4.5);
+  });
+
+  it('ignores quotes around the color', () => {
+    expect(parseConfig({ ALBUM_COLOR: '"#1f4e79"' }).config.color).toBe('#1f4e79');
+    expect(parseConfig({ ALBUM_COLOR: " '#1f4e79' " }).config.color).toBe('#1f4e79');
   });
 
   it('treats empty values as unset', () => {

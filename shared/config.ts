@@ -10,7 +10,7 @@ export interface AlbumConfig {
   title: string | null;
   /** 'auto' follows each visitor's browser (French if it asks for French, else English). */
   language: LanguageSetting;
-  /** Accent color "#rrggbb", dark enough to read as text on white. */
+  /** Accent color "#rrggbb", darkened if needed so it reads as text on white. */
   color: string;
   /** Optional short message shown at the top of the timeline. '' = none. */
   welcome: string;
@@ -60,13 +60,16 @@ export function parseConfig(vars: ConfigVars): { config: AlbumConfig; warnings: 
     }
   }
 
-  const color = vars.ALBUM_COLOR?.trim();
+  const color = vars.ALBUM_COLOR?.trim().replace(/^(["'])(.*)\1$/, '$2').trim(); // tolerate "#2e8b57"
   if (color) {
     const hex = normalizeHex(color);
     if (!hex) warnings.push('ALBUM_COLOR must look like #7a4b2a; using the default color');
-    else if (contrastWithWhite(hex) < MIN_CONTRAST) {
-      warnings.push(`ALBUM_COLOR ${hex} is too light to read on white; pick a darker shade`);
-    } else config.color = hex;
+    else {
+      config.color = readableOnWhite(hex);
+      if (config.color !== hex) {
+        warnings.push(`ALBUM_COLOR ${hex} is too light to read on white; using the darker ${config.color}`);
+      }
+    }
   }
 
   const welcome = vars.ALBUM_WELCOME?.trim();
@@ -93,6 +96,16 @@ function normalizeHex(value: string): string | null {
   if (!m) return null;
   const h = m[1].length === 3 ? [...m[1]].map((c) => c + c).join('') : m[1];
   return `#${h.toLowerCase()}`;
+}
+
+/** The same color, darkened step by step until white text on it is readable (WCAG AA). */
+export function readableOnWhite(hex: string): string {
+  const rgb = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  for (let keep = 1; keep > 0; keep -= 0.04) {
+    const candidate = '#' + rgb.map((c) => Math.round(c * keep).toString(16).padStart(2, '0')).join('');
+    if (contrastWithWhite(candidate) >= MIN_CONTRAST) return candidate;
+  }
+  return '#000000';
 }
 
 /** WCAG contrast ratio between a "#rrggbb" color and white. */

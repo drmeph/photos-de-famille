@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { Person, TimelineEntry } from '../../shared/types';
 import { imageUrl } from '../api';
 import { AddPhotosButton } from '../components/AddPhotosButton';
@@ -7,8 +7,9 @@ import { Icon } from '../components/Icon';
 import { Avatar } from '../components/PersonChips';
 import { YearNav, useActiveYear } from '../components/YearNav';
 import { config } from '../config';
-import { albumTitle, formatDate, t } from '../i18n';
-import { groupByYear, isFiltering, yearsOf, type Filters } from '../lib/filter';
+import { albumTitle, formatDate, formatMonthName, t } from '../i18n';
+import { groupByYear, isFiltering, yearsOf, type Filters, type YearGroup } from '../lib/filter';
+import { layoutMonths, optionsFor, tileRatio } from '../lib/layout';
 import { href, linkClick } from '../router';
 
 interface Props {
@@ -25,6 +26,8 @@ export function Timeline({ all, visible, people, filters, onFilters }: Props) {
   const years = useMemo(() => groupByYear(visible), [visible]);
   const allYears = useMemo(() => yearsOf(all), [all]);
   const nameOf = useMemo(() => new Map(people.map((p) => [p.id, p.name])), [people]);
+  const photosBox = useRef<HTMLDivElement>(null);
+  const width = useWidth(photosBox);
   useActiveYear(years, setActiveYear);
   const filtering = isFiltering(filters);
   const filterCount = filters.people.length + (filters.fromYear !== null || filters.toYear !== null ? 1 : 0);
@@ -111,19 +114,17 @@ export function Timeline({ all, visible, people, filters, onFilters }: Props) {
           {all.length === 0 && <EmptyAlbum />}
           {all.length > 0 && visible.length === 0 && <p class="empty-note">{t.noMatch}</p>}
 
-          {years.map((y) => (
-            <section key={y.year} class="year-section" id={`year-${y.year}`} data-year={y.year}>
-              <h2 class="year-title">
-                <span class="year-num">{y.year}</span>
-                <span class="year-count">{t.photoCount(y.photos.length)}</span>
-              </h2>
-              <div class="grid">
-                {y.photos.map((p) => (
-                  <Tile key={p.id} photo={p} alt={[formatDate(p.t, false), ...p.p.map((id) => nameOf.get(id) ?? id)].join(', ')} />
-                ))}
-              </div>
-            </section>
-          ))}
+          <div ref={photosBox}>
+            {years.map((y) => (
+              <section key={y.year} class="year-section" id={`year-${y.year}`} data-year={y.year}>
+                <h2 class="year-title">
+                  <span class="year-num">{y.year}</span>
+                  <span class="year-count">{t.photoCount(y.photos.length)}</span>
+                </h2>
+                <YearPhotos year={y} width={width} nameOf={nameOf} />
+              </section>
+            ))}
+          </div>
         </main>
 
         <YearNav years={years} active={activeYear} variant="rail" />
@@ -138,17 +139,75 @@ export function Timeline({ all, visible, people, filters, onFilters }: Props) {
   );
 }
 
-/** One thumbnail, sized to keep the photo's own shape (see .grid in styles.css). */
-function Tile({ photo, alt }: { photo: TimelineEntry; alt: string }) {
+/** Width of an element, kept up to date when the window or layout changes. */
+function useWidth(ref: { current: HTMLElement | null }): number {
+  // A first guess from the window size (paddings, sidebar, year column), refined once measured.
+  const [width, setWidth] = useState(() => {
+    const w = window.innerWidth;
+    return w < 700 ? w - 32 : w < 1100 ? w - 56 : w - 320 - 150 - 88;
+  });
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setWidth(Math.floor(el.clientWidth));
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return width;
+}
+
+/** One year's photos, grouped by month (see lib/layout.ts for how lines are built). */
+function YearPhotos({ year, width, nameOf }: { year: YearGroup; width: number; nameOf: Map<string, string> }) {
+  const o = optionsFor(width);
+  const lines = useMemo(
+    () => layoutMonths(year.months.map((m) => ({ key: m.key, ratios: m.photos.map(tileRatio) })), o),
+    [year, width],
+  );
+  const months = new Map(year.months.map((m) => [m.key, m.photos]));
+  return (
+    <div class="year-photos">
+      {lines.map((line) => (
+        <div key={line[0].key} class="month-line" style={{ gap: `${o.monthGap}px` }}>
+          {line.map((m) => {
+            const photos = months.get(m.key)!;
+            const name = formatMonthName(m.key);
+            return (
+              <div key={m.key} class="month" style={{ width: `${m.width}px` }}>
+                <h3 class="month-title" title={name}>
+                  {/* Abbreviate only when the full name wouldn't fit (≈11px per letter at this size). */}
+                  {name.length * 11 > m.width ? formatMonthName(m.key, true) : name}
+                </h3>
+                {m.rows.map((row, i) => (
+                  <div key={i} class="month-row" style={{ gap: `${o.gap}px`, marginTop: i ? `${o.gap}px` : undefined }}>
+                    {row.map(({ index, width, height }) => {
+                      const p = photos[index];
+                      const alt = [formatDate(p.t, false), ...p.p.map((id) => nameOf.get(id) ?? id), p.c ? t.commentCount(p.c) : '']
+                        .filter(Boolean)
+                        .join(', ');
+                      return <Tile key={p.id} photo={p} alt={alt} width={width} height={height} />;
+                    })}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** One thumbnail, at the size the layout gave it. */
+function Tile({ photo, alt, width, height }: { photo: TimelineEntry; alt: string; width: number; height: number }) {
   const img = useRef<HTMLImageElement>(null);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     if (img.current?.complete) setLoaded(true); // already in the browser cache
   }, []);
-  // Very tall or very wide photos are cropped a little so rows stay tidy.
-  const ratio = Math.min(2.2, Math.max(0.6, photo.w / photo.h));
   return (
-    <a class="tile" href={href.photo(photo.id)} onClick={linkClick} style={{ '--r': ratio.toFixed(3) }}>
+    <a class="tile" href={href.photo(photo.id)} onClick={linkClick} style={{ width: `${width}px`, height: `${height}px` }}>
       <img
         ref={img}
         onLoad={() => setLoaded(true)}
@@ -158,6 +217,12 @@ function Tile({ photo, alt }: { photo: TimelineEntry; alt: string }) {
         loading="lazy"
         decoding="async"
       />
+      {photo.c ? (
+        <span class="tile-badge" aria-hidden="true">
+          <Icon name="message" size={15} />
+          {photo.c}
+        </span>
+      ) : null}
     </a>
   );
 }

@@ -29,9 +29,10 @@
 originals/<id>     file exactly as uploaded (JPEG, HEIC, PNG…)
 display/<id>       JPEG, long edge ≤ 2048 px  (photo page)
 thumbs/<id>        JPEG, long edge ≤ 480 px   (timeline)
-meta/<id>.json     PhotoMeta: source of truth for one photo
+meta/<id>.json     PhotoMeta: source of truth for one photo (tags, date, caption, history, comments)
 index.json         TimelineIndex: every photo, newest first (derived from meta/)
 people.json        list of family members that can be tagged
+members.json       display name each signed-in person chose, shown with their comments
 ```
 
 Types are in [`shared/types.ts`](../shared/types.ts). Dates are stored as wall-clock time
@@ -41,6 +42,12 @@ comparison sorts them correctly.
 The browser downloads `index.json` once, then does timeline grouping and person/year
 filtering locally. Each photo is about 80 bytes in the index, so 5,000 photos is about 400 KB,
 revalidated with an ETag.
+
+The timeline layout ([`src/lib/layout.ts`](../src/lib/layout.ts)) groups each year by month.
+Small months share a line, scaled to one common height that fills the width (but never more
+than 25% taller than the target, so a lone photo isn't blown up). A month too wide for one
+line gets its own justified rows. Tile sizes are computed in JavaScript from the measured
+width and recomputed on resize.
 
 ## Upload flow
 
@@ -65,6 +72,17 @@ There's no database, so writes to `index.json`, `people.json` and `meta/<id>.jso
 Tag changes are sent as operations (`addPeople` / `removePeople`), not as the full list. If
 two people tag the same photo at the same time, both tags are kept (there's a test for this).
 Each photo keeps its last 50 changes (`history`) so a mistake can be traced and undone.
+
+## Comments
+
+Comments live in the photo's own `meta/<id>.json` (`comments`, oldest first), written with
+the same optimistic concurrency, so two people commenting at once both get saved. The
+timeline index only stores a count (`c`) for the 💬 badge. Each comment records who wrote it
+(the Access email, used to let only its author delete it) and the display name chosen in
+`members.json` at the time. For a family's volume of comments this is plenty. A database
+(D1) would only become worthwhile for threaded discussions, searching across all comments,
+or heavy traffic. Notifications ("someone commented") would need an email service and
+aren't built.
 
 If `index.json` ever gets out of sync, regenerate it from `meta/`:
 `POST /api/admin/rebuild-index`. For example, run

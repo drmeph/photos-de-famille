@@ -5,11 +5,13 @@
 //   meta/<id>.json   PhotoMeta — the source of truth for one photo
 //   index.json       TimelineIndex — derived from meta/, rebuilt with rebuildIndex()
 //   people.json      PeopleFile — the list of family members you can tag
+//   members.json     MembersFile — the display name each signed-in person chose (for comments)
 
 import type { Variant } from '../shared/types';
 
 export const INDEX_KEY = 'index.json';
 export const PEOPLE_KEY = 'people.json';
+export const MEMBERS_KEY = 'members.json';
 export const META_PREFIX = 'meta/';
 
 const VARIANT_PREFIX: Record<Variant, string> = {

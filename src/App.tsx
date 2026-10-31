@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { Icon } from './components/Icon';
-import { loadPeople, loadTimeline, people as peopleStore, timeline as timelineStore } from './data';
+import { loadMe, loadPeople, loadTimeline, people as peopleStore, timeline as timelineStore } from './data';
 import { albumTitle, t } from './i18n';
 import { applyFilters, NO_FILTERS, type Filters } from './lib/filter';
 import { useStore } from './lib/store';
@@ -28,6 +28,7 @@ export function App() {
   useEffect(() => {
     void loadTimeline();
     void loadPeople();
+    void loadMe();
     // Pick up what others added while this tab sat in the background.
     const onVisible = () => {
       if (document.visibilityState === 'visible') {

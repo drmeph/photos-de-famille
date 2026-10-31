@@ -3,14 +3,17 @@
    nothing that depends on hovering. Layout adapts at 700px (tablet) and 1100px (desktop). */
 
 :root {
-  --paper: #faf6ef;
-  --paper-deep: #f1e9dc;
-  --card: #fffdf9;
-  --ink: #2b221c;
-  --ink-soft: #6b5d51;
-  --line: #e6dccd;
   --accent: #7a4b2a; /* replaced at startup by the family's ALBUM_COLOR */
   --accent-ink: #ffffff; /* ALBUM_COLOR is always dark enough for white text */
+  /* Neutrals carry a hint of the family color, so the whole page follows it
+     (with the default brown they match the original warm paper look). */
+  --paper: color-mix(in srgb, var(--accent) 4%, #fdf9f3);
+  --paper-deep: color-mix(in srgb, var(--accent) 9%, #f6f0e7);
+  --card: color-mix(in srgb, var(--accent) 1.5%, #fffefb);
+  --ink: color-mix(in srgb, var(--accent) 18%, #1e1a17);
+  --ink-soft: color-mix(in srgb, var(--accent) 22%, #5d564f);
+  --line: color-mix(in srgb, var(--accent) 14%, #ece6dd);
+  --shade: color-mix(in srgb, var(--accent) 45%, #2b2118); /* tint of the shadows */
   --accent-soft: color-mix(in srgb, var(--accent) 11%, var(--paper));
   --accent-line: color-mix(in srgb, var(--accent) 38%, var(--paper));
   --stage: #15110e;
@@ -20,9 +23,9 @@
   --radius-s: 12px;
   --radius: 18px;
   --radius-l: 26px;
-  --shadow-s: 0 1px 2px rgb(70 45 20 / 0.08);
-  --shadow: 0 1px 2px rgb(70 45 20 / 0.06), 0 8px 24px rgb(70 45 20 / 0.09);
-  --shadow-l: 0 18px 50px rgb(40 25 10 / 0.25);
+  --shadow-s: 0 1px 2px color-mix(in srgb, var(--shade) 9%, transparent);
+  --shadow: 0 1px 2px color-mix(in srgb, var(--shade) 7%, transparent), 0 8px 24px color-mix(in srgb, var(--shade) 11%, transparent);
+  --shadow-l: 0 18px 50px color-mix(in srgb, var(--shade) 28%, transparent);
 
   --font-body: 'Atkinson Hyperlegible Next Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-display: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
@@ -108,7 +111,7 @@ a { color: var(--accent); }
   padding-top: env(safe-area-inset-top);
   background: var(--paper);
   border-bottom: 1px solid var(--line);
-  box-shadow: 0 6px 18px -14px rgb(70 45 20 / 0.35);
+  box-shadow: 0 6px 18px -14px color-mix(in srgb, var(--shade) 40%, transparent);
 }
 .appbar-row { display: flex; align-items: center; gap: 0.75rem; min-height: var(--appbar); padding: 0 var(--gutter); }
 
@@ -177,7 +180,7 @@ body.sheet-open { overflow: hidden; }
 
 .backdrop {
   position: fixed; inset: 0; z-index: 30;
-  background: rgb(35 22 10 / 0.42);
+  background: color-mix(in srgb, var(--shade) 48%, transparent);
   backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
   animation: fade-in 0.25s ease;
 }
@@ -260,22 +263,38 @@ textarea.input { resize: vertical; line-height: 1.45; }
   font-variant-numeric: lining-nums;
 }
 .year-count { color: var(--ink-soft); font-weight: 650; font-size: 0.95rem; }
-/* Justified rows: each tile grows in proportion to its width/height ratio (--r),
-   so every row is filled edge to edge and photos keep their real shape. */
-.grid { display: flex; flex-wrap: wrap; gap: 6px; }
-.grid::after { content: ''; flex: 1e6 1 0; } /* soaks up the last row's spare room so it isn't stretched */
+/* Months: tile sizes come from lib/layout.ts. Small months share a line; big ones get their own rows. */
+.year-photos { display: grid; gap: 22px; }
+.month-line { display: flex; align-items: flex-start; }
+.month { flex: none; min-width: 0; }
+.month-title {
+  margin: 0 0 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-family: var(--font-display); font-style: italic; font-weight: 500; font-size: 1.1rem; color: var(--ink-soft);
+}
+.month-title::first-letter { text-transform: uppercase; }
+.month-row { display: flex; }
+
 .tile {
-  position: relative; display: block; overflow: hidden;
-  flex: calc(var(--r) * 100) 1 calc(var(--r) * var(--row));
-  aspect-ratio: var(--r);
+  position: relative; display: block; flex: none; overflow: hidden;
   border-radius: var(--radius-s); background: var(--accent-soft); box-shadow: var(--shadow-s);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
+
+/* Loading skeleton: tiles grow in proportion to their shape (--r) to fill each row. */
+.grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.grid .tile { flex: calc(var(--r) * 100) 1 calc(var(--r) * var(--row)); aspect-ratio: var(--r); }
 .tile img {
   display: block; width: 100%; height: 100%; object-fit: cover;
   opacity: 0; transition: opacity 0.5s ease;
 }
 .tile img.is-loaded { opacity: 1; }
+.tile-badge {
+  position: absolute; right: 6px; bottom: 6px;
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  padding: 0.15rem 0.5rem 0.15rem 0.4rem; border-radius: 999px;
+  font-size: 0.8rem; font-weight: 800; color: #fff; background: rgb(20 15 10 / 0.55);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
 @media (hover: hover) {
   .tile:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
 }
@@ -283,7 +302,7 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .empty { max-width: 30rem; margin: 6vh auto 0; text-align: center; display: grid; justify-items: center; gap: 0.75rem; }
 .empty h2 { font-family: var(--font-display); font-size: 2rem; font-weight: 600; }
 .empty p { margin: 0 0 0.75rem; color: var(--ink-soft); font-size: 1.1rem; }
-.empty-art { width: 240px; height: auto; filter: drop-shadow(0 10px 18px rgb(70 45 20 / 0.16)); }
+.empty-art { width: 240px; height: auto; filter: drop-shadow(0 10px 18px color-mix(in srgb, var(--shade) 18%, transparent)); }
 .empty-art .print { fill: #fff; stroke: var(--line); }
 .empty-art .print-photo { fill: color-mix(in srgb, var(--accent) 22%, var(--paper)); }
 .empty-art .print-photo-2 { fill: color-mix(in srgb, var(--accent) 12%, var(--paper)); }
@@ -374,6 +393,33 @@ textarea.input { resize: vertical; line-height: 1.45; }
 }
 .details-loading { height: 220px; border-radius: var(--radius); }
 
+/* Comments */
+.count-badge {
+  min-width: 26px; height: 26px; padding: 0 8px; border-radius: 999px;
+  display: inline-grid; place-items: center;
+  font-family: var(--font-body); font-size: 0.85rem; font-weight: 800; color: var(--accent); background: var(--accent-soft);
+}
+.comment-list { list-style: none; margin: 0 0 1rem; padding: 0; display: grid; gap: 1rem; }
+.comment { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 0.75rem; align-items: start; }
+.comment-meta { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.6rem; }
+.comment-meta time { color: var(--ink-soft); font-size: 0.9rem; }
+.comment-text {
+  margin: 0.3rem 0 0; padding: 0.65rem 0.9rem;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 4px var(--radius) var(--radius) var(--radius);
+}
+.link-btn.is-quiet { color: var(--ink-soft); text-decoration: none; font-size: 0.88rem; }
+.composer { display: grid; gap: 0.6rem; }
+.composer > .btn { justify-self: start; }
+.commenting-as { font-size: 0.95rem; }
+.field-hint { font-size: 0.88rem; }
+.link-btn {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  min-height: 40px; padding: 0 0.25rem; margin-top: 0.15rem;
+  font: inherit; font-size: 0.92rem; font-weight: 650; color: var(--accent);
+  background: none; border: none; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+}
+
 /* ------------------------------------------------------------------ upload modal */
 
 .modal-layer { position: fixed; inset: 0; z-index: 60; display: grid; }
@@ -455,6 +501,7 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 99px; }
   .content { padding: 20px var(--gutter) 64px; }
   .grid { gap: 8px; }
   .year-section + .year-section { margin-top: 36px; }
+  .year-photos { gap: 30px; }
 
   .sidebar { width: min(560px, 92vw); margin: 0 auto; }
 

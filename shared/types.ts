@@ -33,6 +33,20 @@ export interface HistoryEntry {
   action: string; // human-readable, e.g. "+tag:mamie"
 }
 
+export interface Comment {
+  id: string;
+  by: string; // who wrote it (email, or name in shared-password mode): only they can delete it
+  name: string; // display name at the time of writing
+  at: string; // ISO timestamp (UTC)
+  text: string;
+}
+
+/** members.json: the display name each family member chose, by sign-in identity. */
+export interface MembersFile {
+  v: 1;
+  names: Record<string, string>;
+}
+
 /** Full metadata for one photo, stored as meta/<id>.json in R2 (source of truth). */
 export interface PhotoMeta {
   id: string;
@@ -46,6 +60,7 @@ export interface PhotoMeta {
   uploadedAt: string; // ISO
   uploadedBy: string;
   history: HistoryEntry[]; // most recent last, capped
+  comments?: Comment[]; // oldest first; missing on photos saved before comments existed
 }
 
 /** Compact per-photo entry in the timeline index (index.json). */
@@ -55,6 +70,7 @@ export interface TimelineEntry {
   w: number;
   h: number;
   p: string[];
+  c?: number; // number of comments, omitted when there are none
 }
 
 /** index.json: every photo, newest first. Rebuilt incrementally on each write. */
@@ -83,10 +99,14 @@ export interface UpdatePhotoRequest {
 }
 
 export const PHOTO_ID_RE = /^[a-f0-9]{20}$/;
+export const COMMENT_MAX = 2000; // characters
+export const NAME_MAX = 40;
 export const LOCAL_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
 
 export function toTimelineEntry(m: PhotoMeta): TimelineEntry {
-  return { id: m.id, t: m.takenAt, w: m.width, h: m.height, p: m.people };
+  const entry: TimelineEntry = { id: m.id, t: m.takenAt, w: m.width, h: m.height, p: m.people };
+  if (m.comments?.length) entry.c = m.comments.length;
+  return entry;
 }
 
 /** Newest first; ties broken by id so the order is stable. */

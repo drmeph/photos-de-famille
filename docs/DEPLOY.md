@@ -216,8 +216,8 @@ R2 is durable, but a copy you hold yourself protects against mistakes. Using
    rclone copy album:album-familial-photos ./album-backup --progress
    ```
 
-The backup contains the original files (`originals/`), and the tags, dates and captions
-(`meta/*.json`), in plain formats you can open without this project.
+The backup contains the original files (`originals/`), and the tags, dates, captions and
+comments (`meta/*.json`), in plain formats you can open without this project.
 
 ## Troubleshooting
 

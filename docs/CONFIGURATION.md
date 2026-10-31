@@ -8,7 +8,7 @@ code, so you can deploy the project as-is and keep your family's details private
 |---|---|---|
 | `ALBUM_TITLE` | Name in the header, browser tab and under the home-screen icon (max 60 characters). | "Album de famille" / "Family album" |
 | `ALBUM_LANGUAGE` | `fr`, `en`, or `auto` (each visitor gets French if their phone is in French, otherwise English). | `auto` |
-| `ALBUM_COLOR` | Accent color for buttons and highlights, as `#rrggbb`. It must be dark enough to read on white (WCAG AA, 4.5:1); paler colors are refused. | `#7a4b2a` (warm brown) |
+| `ALBUM_COLOR` | The album's color, as `#rrggbb`: buttons and highlights, plus a light tint of the background, borders and text. Colors too pale for white text on them are darkened automatically (WCAG AA, 4.5:1), keeping their hue. | `#7a4b2a` (warm brown) |
 | `ALBUM_WELCOME` | Short message at the top of the album, e.g. who to ask for help (max 500 characters, line breaks kept). | none |
 
 Example for the Martin family:
