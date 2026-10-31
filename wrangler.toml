@@ -1,0 +1,21 @@
+# Cloudflare Pages configuration (used by `wrangler pages dev` and `wrangler pages deploy`).
+name = "album-familial"
+compatibility_date = "2026-10-01"
+pages_build_output_dir = "dist"
+
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "album-familial-photos"
+
+# Sign-in and family settings are NOT stored here (this file is public). Set them as secrets:
+#   npx wrangler pages secret put <NAME> --project-name album-familial
+# Sign-in (docs/AUTH.md):          ACCESS_TEAM_DOMAIN + ACCESS_AUD, or BASIC_AUTH_PASSWORD
+# Family (docs/CONFIGURATION.md):  ALBUM_TITLE, ALBUM_LANGUAGE, ALBUM_COLOR, ALBUM_WELCOME
+# For local development, copy .dev.vars.example to .dev.vars.
+#
+# If you don't mind your family settings being public in your fork, uncomment instead:
+# [vars]
+# ALBUM_TITLE = "Album de la famille Martin"
+# ALBUM_LANGUAGE = "fr"
+# ALBUM_COLOR = "#1f4e79"
+# ALBUM_WELCOME = "Bienvenue ! Ajoutez vos souvenirs."

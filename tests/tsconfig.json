@@ -1,0 +1,4 @@
+{
+  "extends": "../functions/tsconfig.json",
+  "include": ["./**/*.ts", "../server/**/*.ts", "../shared/**/*.ts", "../src/lib/filter.ts", "../src/lib/dates.ts"]
+}
