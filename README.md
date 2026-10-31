@@ -28,8 +28,8 @@ family one shared place for them that:
 
 ## Features
 
-- **Add photos** from the camera or the photo library. iPhone HEIC photos work, and the same
-  photo added twice is detected.
+- **Add photos** from the camera or the photo library, or on a computer by dragging several
+  in from a folder. iPhone HEIC photos work, and the same photo added twice is detected.
 - **A timeline by year and month**, using the date each photo was taken. Months with only a
   photo or two sit side by side, so sparse old years stay compact. Old scans with a wrong date
   can be corrected by anyone.
