@@ -106,7 +106,7 @@ code. They apply on the next deploy, with no rebuild needed.
 |---|---|---|
 | `ALBUM_TITLE` | Name in the header, browser tab and home-screen icon | `The Martin Family Album` |
 | `ALBUM_LANGUAGE` | `fr`, `en`, or `auto` (follows each visitor's phone) | `fr` |
-| `ALBUM_COLOR` | Accent color (must be dark enough to read on white) | `#1f4e79` |
+| `ALBUM_COLOR` | The album's color: buttons, highlights, and a light tint across the page | `#1f4e79` |
 | `ALBUM_WELCOME` | Short message at the top of the album | `Welcome! Questions? Call Kevin.` |
 
 Details in [docs/CONFIGURATION.md](docs/CONFIGURATION.md).

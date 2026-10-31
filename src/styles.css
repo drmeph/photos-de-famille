@@ -3,14 +3,17 @@
    nothing that depends on hovering. Layout adapts at 700px (tablet) and 1100px (desktop). */
 
 :root {
-  --paper: #faf6ef;
-  --paper-deep: #f1e9dc;
-  --card: #fffdf9;
-  --ink: #2b221c;
-  --ink-soft: #6b5d51;
-  --line: #e6dccd;
   --accent: #7a4b2a; /* replaced at startup by the family's ALBUM_COLOR */
   --accent-ink: #ffffff; /* ALBUM_COLOR is always dark enough for white text */
+  /* Neutrals carry a hint of the family color, so the whole page follows it
+     (with the default brown they match the original warm paper look). */
+  --paper: color-mix(in srgb, var(--accent) 4%, #fdf9f3);
+  --paper-deep: color-mix(in srgb, var(--accent) 9%, #f6f0e7);
+  --card: color-mix(in srgb, var(--accent) 1.5%, #fffefb);
+  --ink: color-mix(in srgb, var(--accent) 18%, #1e1a17);
+  --ink-soft: color-mix(in srgb, var(--accent) 22%, #5d564f);
+  --line: color-mix(in srgb, var(--accent) 14%, #ece6dd);
+  --shade: color-mix(in srgb, var(--accent) 45%, #2b2118); /* tint of the shadows */
   --accent-soft: color-mix(in srgb, var(--accent) 11%, var(--paper));
   --accent-line: color-mix(in srgb, var(--accent) 38%, var(--paper));
   --stage: #15110e;
@@ -20,9 +23,9 @@
   --radius-s: 12px;
   --radius: 18px;
   --radius-l: 26px;
-  --shadow-s: 0 1px 2px rgb(70 45 20 / 0.08);
-  --shadow: 0 1px 2px rgb(70 45 20 / 0.06), 0 8px 24px rgb(70 45 20 / 0.09);
-  --shadow-l: 0 18px 50px rgb(40 25 10 / 0.25);
+  --shadow-s: 0 1px 2px color-mix(in srgb, var(--shade) 9%, transparent);
+  --shadow: 0 1px 2px color-mix(in srgb, var(--shade) 7%, transparent), 0 8px 24px color-mix(in srgb, var(--shade) 11%, transparent);
+  --shadow-l: 0 18px 50px color-mix(in srgb, var(--shade) 28%, transparent);
 
   --font-body: 'Atkinson Hyperlegible Next Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-display: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
@@ -108,7 +111,7 @@ a { color: var(--accent); }
   padding-top: env(safe-area-inset-top);
   background: var(--paper);
   border-bottom: 1px solid var(--line);
-  box-shadow: 0 6px 18px -14px rgb(70 45 20 / 0.35);
+  box-shadow: 0 6px 18px -14px color-mix(in srgb, var(--shade) 40%, transparent);
 }
 .appbar-row { display: flex; align-items: center; gap: 0.75rem; min-height: var(--appbar); padding: 0 var(--gutter); }
 
@@ -177,7 +180,7 @@ body.sheet-open { overflow: hidden; }
 
 .backdrop {
   position: fixed; inset: 0; z-index: 30;
-  background: rgb(35 22 10 / 0.42);
+  background: color-mix(in srgb, var(--shade) 48%, transparent);
   backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
   animation: fade-in 0.25s ease;
 }
@@ -299,7 +302,7 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .empty { max-width: 30rem; margin: 6vh auto 0; text-align: center; display: grid; justify-items: center; gap: 0.75rem; }
 .empty h2 { font-family: var(--font-display); font-size: 2rem; font-weight: 600; }
 .empty p { margin: 0 0 0.75rem; color: var(--ink-soft); font-size: 1.1rem; }
-.empty-art { width: 240px; height: auto; filter: drop-shadow(0 10px 18px rgb(70 45 20 / 0.16)); }
+.empty-art { width: 240px; height: auto; filter: drop-shadow(0 10px 18px color-mix(in srgb, var(--shade) 18%, transparent)); }
 .empty-art .print { fill: #fff; stroke: var(--line); }
 .empty-art .print-photo { fill: color-mix(in srgb, var(--accent) 22%, var(--paper)); }
 .empty-art .print-photo-2 { fill: color-mix(in srgb, var(--accent) 12%, var(--paper)); }
