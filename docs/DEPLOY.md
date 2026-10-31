@@ -19,7 +19,7 @@ You will:
 Then: [updating](#updating), [backups](#backups), [troubleshooting](#troubleshooting).
 
 **What you need:** a [Cloudflare account](https://dash.cloudflare.com/sign-up) (free), a
-GitHub account, and [Node.js](https://nodejs.org) 20 or newer on your computer for the
+GitHub account, and [Node.js](https://nodejs.org) 22 or newer on your computer for the
 one-time setup commands.
 
 ---
@@ -31,6 +31,7 @@ Fork this repository on GitHub (the **Fork** button), then on your computer:
 ```sh
 git clone https://github.com/<you>/<your-fork>.git
 cd <your-fork>
+node --version            # must be v22 or newer (with nvm: `nvm use` picks it from .nvmrc)
 npm install
 npx wrangler login        # opens the browser to connect wrangler to your Cloudflare account
 ```
