@@ -33,6 +33,8 @@ family one shared place for them that:
 - **A timeline by year and month**, using the date each photo was taken. Months with only a
   photo or two sit side by side, so sparse old years stay compact. Old scans with a wrong date
   can be corrected by anyone.
+- **Latest additions**: switch between "By date" and "Latest additions" to see what the family
+  added recently, grouped by day ("Today", "Yesterday"…), with each photo's year shown.
 - **Comments** under each photo, to share memories ("that was the year of the big snow…").
   Photos with comments show a small 💬 badge in the timeline.
 - **Who's in it**: tap names to tag people. The whole family can help identify faces.

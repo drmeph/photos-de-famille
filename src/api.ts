@@ -48,6 +48,7 @@ export const api = {
   deleteComment: (id: string, commentId: string) =>
     call<PhotoMeta>(`photos/${id}/comments/${commentId}`, { method: 'DELETE' }),
   timeline: () => call<TimelineIndex>('timeline'),
+  backfillUploads: () => call<{ remaining: number }>('admin/backfill-uploads', { method: 'POST' }),
   people: () => call<PeopleFile>('people'),
   addPerson: (name: string) => call<Person>('people', sendJson('POST', { name })),
   photo: (id: string) => call<PhotoMeta>(`photos/${id}`),

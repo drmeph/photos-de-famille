@@ -13,6 +13,7 @@
 //   POST  /api/photos/:id/comments  {text} -> PhotoMeta (needs a display name, see PUT /api/me)
 //   DELETE /api/photos/:id/comments/:cid   -> PhotoMeta (only the comment's author)
 //   POST  /api/admin/rebuild-index         -> { count } (regenerate index.json from meta/*.json)
+//   POST  /api/admin/backfill-uploads      -> { remaining } (add missing upload dates to index.json, in batches)
 //
 // Uploads are raw PUTs streamed straight into R2 (no multipart parsing), which keeps
 // CPU time per request tiny and fits the Workers free plan.
@@ -130,6 +131,10 @@ async function route(request: Request, env: Env, user: string): Promise<Response
       if (method === 'PUT') return uploadVariant(request, bucket, id, variant);
       if (method === 'GET' || method === 'HEAD') return serveImage(request, bucket, id, variant, url);
     }
+  }
+
+  if (parts[0] === 'admin' && parts[1] === 'backfill-uploads' && parts.length === 2 && method === 'POST') {
+    return json({ remaining: await backfillUploadDates(bucket) });
   }
 
   if (parts[0] === 'admin' && parts[1] === 'rebuild-index' && parts.length === 2 && method === 'POST') {
@@ -398,6 +403,35 @@ async function upsertIndexEntry(bucket: R2Bucket, meta: PhotoMeta) {
       return { ...index, photos };
     },
   );
+}
+
+/**
+ * Index entries written before upload dates were recorded have no `u`. Fill in a batch of them
+ * from their meta files (a small batch keeps each request well within Workers' limits); the app
+ * calls this repeatedly until nothing remains. Returns how many entries still lack a date.
+ */
+export async function backfillUploadDates(bucket: R2Bucket, batch = 40): Promise<number> {
+  const index = await readJson<TimelineIndex>(bucket, INDEX_KEY);
+  const missing = index?.photos.filter((p) => !p.u).slice(0, batch) ?? [];
+  if (missing.length === 0) return 0;
+  const metas = await Promise.all(missing.map((p) => readJson<PhotoMeta>(bucket, metaKey(p.id))));
+  const dates = new Map(metas.filter((m): m is PhotoMeta => m !== null).map((m) => [m.id, m.uploadedAt]));
+  const updated = await updateJson<TimelineIndex>(
+    bucket,
+    INDEX_KEY,
+    () => ({ v: 1, photos: [] }),
+    (current) => {
+      let changed = false;
+      const photos = current.photos.map((p) => {
+        const u = !p.u && dates.get(p.id);
+        if (!u) return p;
+        changed = true;
+        return { ...p, u };
+      });
+      return changed ? { ...current, photos } : null;
+    },
+  );
+  return updated.photos.filter((p) => !p.u).length;
 }
 
 /** Regenerate index.json from every meta/<id>.json. Safe to run any time. */

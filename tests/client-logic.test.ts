@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyFilters, groupByYear, yearsOf } from '../src/lib/filter';
+import { applyFilters, groupByAddedDay, groupByYear, localDay, sortByAdded, yearsOf } from '../src/lib/filter';
 import { parseExifDate } from '../src/lib/dates';
 import type { TimelineEntry } from '../shared/types';
 
@@ -44,5 +44,29 @@ describe('parseExifDate', () => {
     expect(parseExifDate('0000:00:00 00:00:00')).toBeNull();
     expect(parseExifDate('    ')).toBeNull();
     expect(parseExifDate(undefined)).toBeNull();
+  });
+});
+
+describe('latest additions', () => {
+  const at = (y: number, mo: number, d: number, h = 12) => new Date(y, mo - 1, d, h).toISOString();
+  const added = [
+    { ...e('old-scan', '1962-06-15T10:00:00'), u: at(2026, 10, 31, 20) },
+    { ...e('summer', '2025-07-14T10:00:00'), u: at(2026, 10, 31, 9) },
+    { ...e('xmas', '2024-12-24T10:00:00'), u: at(2026, 10, 27) },
+    e('legacy', '2020-01-01T10:00:00'), // no upload date yet
+  ];
+
+  it('sorts by upload date, newest first, unknown last', () => {
+    expect(sortByAdded([added[3], added[2], added[0], added[1]]).map((p) => p.id)).toEqual(['old-scan', 'summer', 'xmas', 'legacy']);
+  });
+
+  it('groups by the local day photos were added', () => {
+    const groups = groupByAddedDay(sortByAdded(added));
+    expect(groups.map((g) => [g.key, g.photos.map((p) => p.id)])).toEqual([
+      ['2026-10-31', ['old-scan', 'summer']],
+      ['2026-10-27', ['xmas']],
+      ['', ['legacy']],
+    ]);
+    expect(localDay(new Date(2026, 0, 5))).toBe('2026-01-05');
   });
 });

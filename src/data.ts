@@ -26,9 +26,31 @@ export async function loadTimeline() {
   try {
     const index = await api.timeline();
     timeline.set({ status: 'ready', data: index.photos });
+    if (index.photos.some((p) => !p.u)) void backfillUploadDates();
   } catch {
     // Keep showing what we have if this was only a refresh.
     if (timeline.get().status !== 'ready') timeline.set({ status: 'error' });
+  }
+}
+
+let backfilling = false;
+
+/** Albums started before "latest additions" existed lack upload dates in the timeline index.
+ *  Ask the server to fill them in, a batch at a time, then reload. Runs once per session. */
+async function backfillUploadDates() {
+  if (backfilling) return;
+  backfilling = true;
+  try {
+    let previous = Infinity;
+    for (;;) {
+      const { remaining } = await api.backfillUploads();
+      if (remaining === 0 || remaining >= previous) break; // done, or stuck: stop either way
+      previous = remaining;
+    }
+    const index = await api.timeline();
+    timeline.set({ status: 'ready', data: index.photos });
+  } catch {
+    backfilling = false; // try again on the next load
   }
 }
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import { Icon } from './components/Icon';
 import { loadMe, loadPeople, loadTimeline, people as peopleStore, timeline as timelineStore } from './data';
 import { albumTitle, t } from './i18n';
-import { applyFilters, NO_FILTERS, type Filters } from './lib/filter';
+import { applyFilters, NO_FILTERS, sortByAdded, type Filters, type SortMode } from './lib/filter';
 import { useStore } from './lib/store';
 import { useRoute } from './router';
 import { PhotoView } from './views/PhotoView';
@@ -10,6 +10,7 @@ import { Timeline } from './views/Timeline';
 import { UploadView } from './views/UploadView';
 
 const FILTERS_KEY = 'album.filters';
+const SORT_KEY = 'album.sort';
 
 function loadFilters(): Filters {
   try {
@@ -19,11 +20,20 @@ function loadFilters(): Filters {
   }
 }
 
+function loadSort(): SortMode {
+  try {
+    return sessionStorage.getItem(SORT_KEY) === 'added' ? 'added' : 'date';
+  } catch {
+    return 'date';
+  }
+}
+
 export function App() {
   const route = useRoute();
   const timeline = useStore(timelineStore);
   const people = useStore(peopleStore);
   const [filters, setFilters] = useState(loadFilters);
+  const [sort, setSort] = useState(loadSort);
 
   useEffect(() => {
     void loadTimeline();
@@ -48,8 +58,20 @@ export function App() {
     }
   }, [filters]);
 
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(SORT_KEY, sort);
+    } catch {
+      // the choice just won't survive a reload
+    }
+  }, [sort]);
+
   const all = timeline.status === 'ready' ? timeline.data : [];
-  const visible = useMemo(() => applyFilters(all, filters), [all, filters]);
+  // The photos on screen, in the order shown: previous/next on a photo follow the same order.
+  const visible = useMemo(() => {
+    const filtered = applyFilters(all, filters);
+    return sort === 'added' ? sortByAdded(filtered) : filtered;
+  }, [all, filters, sort]);
 
   if (timeline.status === 'loading') return <Skeleton />;
   if (timeline.status === 'error') {
@@ -68,7 +90,15 @@ export function App() {
   return (
     <>
       {/* The timeline stays mounted under the overlays so its scroll position is kept. */}
-      <Timeline all={all} visible={visible} people={people} filters={filters} onFilters={setFilters} />
+      <Timeline
+        all={all}
+        visible={visible}
+        people={people}
+        filters={filters}
+        onFilters={setFilters}
+        sort={sort}
+        onSort={setSort}
+      />
       {route.name === 'photo' && <PhotoView id={route.id} list={visible} people={people} />}
       {route.name === 'upload' && <UploadView />}
     </>

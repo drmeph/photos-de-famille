@@ -53,3 +53,36 @@ export function groupByYear(photos: TimelineEntry[]): YearGroup[] {
   }
   return years;
 }
+
+/** 'date': by when the photo was taken (the timeline). 'added': latest uploads first. */
+export type SortMode = 'date' | 'added';
+
+/** Latest uploads first. Entries without an upload date (not backfilled yet) go last. */
+export function sortByAdded(photos: TimelineEntry[]): TimelineEntry[] {
+  return [...photos].sort((a, b) => {
+    if ((a.u ?? '') !== (b.u ?? '')) return (a.u ?? '') < (b.u ?? '') ? 1 : -1;
+    return a.t !== b.t ? (a.t < b.t ? 1 : -1) : a.id < b.id ? -1 : 1;
+  });
+}
+
+export interface DayGroup {
+  key: string; // local date "2026-10-31", or "" when the upload date is unknown
+  photos: TimelineEntry[];
+}
+
+/** Group photos already sorted by sortByAdded, by the day (in the viewer's timezone) they were added. */
+export function groupByAddedDay(photos: TimelineEntry[]): DayGroup[] {
+  const groups: DayGroup[] = [];
+  for (const e of photos) {
+    const key = e.u ? localDay(new Date(e.u)) : '';
+    const last = groups[groups.length - 1];
+    if (last?.key === key) last.photos.push(e);
+    else groups.push({ key, photos: [e] });
+  }
+  return groups;
+}
+
+export function localDay(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
