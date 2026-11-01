@@ -200,6 +200,10 @@ When this project gets improvements, bring them into your fork with GitHub's **S
 button. The push to `main` deploys them automatically (step 6). Your photos and settings
 aren't touched: they live in R2 and in Cloudflare secrets, not in the code.
 
+Family members don't need to clear anything: an open album notices the new version and
+reloads by itself the next time they come back to it (or offers a "Refresh" button if they're
+in the middle of something).
+
 ## Backups
 
 R2 is durable, but a copy you hold yourself protects against mistakes. Using

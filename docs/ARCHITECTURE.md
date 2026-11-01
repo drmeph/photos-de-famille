@@ -65,6 +65,19 @@ width and recomputed on resize.
 
 Images of a finalized photo can't be overwritten (409).
 
+## New releases on open pages
+
+Phones often resume the album from memory instead of reloading it (especially from the home
+screen, where there's no address bar or pull-to-refresh). So each build gets an id, baked into
+the app and published in `/version.json` ([`vite.config.ts`](../vite.config.ts)). The app
+compares the two when it comes back on screen and every 15 minutes
+([`src/lib/version.ts`](../src/lib/version.ts)):
+
+- coming back with nothing in progress: it reloads by itself;
+- otherwise (an upload, text being typed): a "New version available · Refresh" banner;
+- an old page that can't load on-demand code anymore (the previous version's files are gone
+  after a release) shows the same banner.
+
 ## Concurrent edits
 
 There's no database, so writes to `index.json`, `people.json` and `meta/<id>.json` use
