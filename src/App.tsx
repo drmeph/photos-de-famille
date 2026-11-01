@@ -1,14 +1,24 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { Icon } from './components/Icon';
+import { UpdateBanner } from './components/UpdateBanner';
 import { WelcomeName } from './components/WelcomeName';
-import { loadMe, loadMembers, loadPeople, me as meStore, loadTimeline, people as peopleStore, timeline as timelineStore } from './data';
+import { isUploading, loadMe, loadMembers, loadPeople, me as meStore, loadTimeline, people as peopleStore, timeline as timelineStore } from './data';
 import { albumTitle, t } from './i18n';
 import { applyFilters, NO_FILTERS, sortByAdded, type Filters, type SortMode } from './lib/filter';
 import { useStore } from './lib/store';
+import { watchForUpdates } from './lib/version';
 import { useRoute } from './router';
 import { PhotoView } from './views/PhotoView';
 import { Timeline } from './views/Timeline';
 import { UploadView } from './views/UploadView';
+
+/** Reloading now would lose something: an upload in progress, or text being typed. */
+function isBusy(): boolean {
+  if (isUploading()) return true;
+  return [...document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('textarea, input[type="text"]')].some(
+    (el) => el.value.trim() !== '',
+  );
+}
 
 const FILTERS_KEY = 'album.filters';
 const SORT_KEY = 'album.sort';
@@ -58,6 +68,7 @@ export function App() {
     void loadPeople();
     void loadMe();
     void loadMembers();
+    watchForUpdates(isBusy);
     // Pick up what others added while this tab sat in the background.
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
@@ -122,6 +133,7 @@ export function App() {
       {route.name === 'photo' && <PhotoView id={route.id} list={visible} people={people} />}
       {route.name === 'upload' && <UploadView />}
       {me && !me.name && !nameLater && <WelcomeName onLater={later} />}
+      <UpdateBanner />
     </>
   );
 }
