@@ -32,15 +32,16 @@ thumbs/<id>        JPEG, long edge ≤ 480 px   (timeline)
 meta/<id>.json     PhotoMeta: source of truth for one photo (tags, date, caption, history, comments)
 index.json         TimelineIndex: every photo, newest first (derived from meta/)
 people.json        list of family members that can be tagged
-members.json       display name each signed-in person chose, shown with their comments
+members.json       display name each signed-in person chose (asked on their first visit), shown on their uploads and comments
 ```
 
 Types are in [`shared/types.ts`](../shared/types.ts). Dates are stored as wall-clock time
 without a timezone (`"1985-12-24T20:15:00"`), the way EXIF records them. Plain string
 comparison sorts them correctly.
 
-The browser downloads `index.json` once, then does timeline grouping and person/year
-filtering locally. Each photo is about 80 bytes in the index, so 5,000 photos is about 400 KB,
+The browser downloads `index.json` once, then does timeline grouping, person/year
+filtering and sorting ("By date" or "Latest additions", using each entry's upload date `u`
+and uploader `b`, whose display name comes from `GET /api/members`) locally. Each photo is about 80 bytes in the index, so 5,000 photos is about 400 KB,
 revalidated with an ETag.
 
 The timeline layout ([`src/lib/layout.ts`](../src/lib/layout.ts)) groups each year by month.
@@ -85,6 +86,10 @@ timeline index only stores a count (`c`) for the 💬 badge. Each comment record
 (D1) would only become worthwhile for threaded discussions, searching across all comments,
 or heavy traffic. Notifications ("someone commented") would need an email service and
 aren't built.
+
+Index entries written before upload info was recorded have no `u`/`b`. When the app sees one,
+it calls `POST /api/admin/backfill-uploads`, which fills in up to 40 entries per call from
+their meta files (small batches keep each request within Workers' limits), until none remain.
 
 If `index.json` ever gets out of sync, regenerate it from `meta/`:
 `POST /api/admin/rebuild-index`. For example, run

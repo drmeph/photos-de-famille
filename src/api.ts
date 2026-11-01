@@ -1,5 +1,6 @@
 import type {
   CreatePhotoRequest,
+  MembersFile,
   PeopleFile,
   Person,
   PhotoMeta,
@@ -44,10 +45,12 @@ export const imageUrl = (id: string, variant: Variant) => `/api/photos/${id}/${v
 export const api = {
   me: () => call<Me>('me'),
   setName: (name: string) => call<Me>('me', sendJson('PUT', { name })),
+  members: () => call<MembersFile>('members'),
   addComment: (id: string, text: string) => call<PhotoMeta>(`photos/${id}/comments`, sendJson('POST', { text })),
   deleteComment: (id: string, commentId: string) =>
     call<PhotoMeta>(`photos/${id}/comments/${commentId}`, { method: 'DELETE' }),
   timeline: () => call<TimelineIndex>('timeline'),
+  backfillUploads: () => call<{ remaining: number }>('admin/backfill-uploads', { method: 'POST' }),
   people: () => call<PeopleFile>('people'),
   addPerson: (name: string) => call<Person>('people', sendJson('POST', { name })),
   photo: (id: string) => call<PhotoMeta>(`photos/${id}`),

@@ -7,8 +7,10 @@ import { Icon } from '../components/Icon';
 import { Avatar } from '../components/PersonChips';
 import { YearNav, useActiveYear } from '../components/YearNav';
 import { config } from '../config';
-import { albumTitle, formatDate, formatMonthName, t } from '../i18n';
-import { groupByYear, isFiltering, yearsOf, type Filters, type YearGroup } from '../lib/filter';
+import { albumTitle, formatAddedDay, formatDate, formatMonthName, t } from '../i18n';
+import { displayName, members as membersStore } from '../data';
+import { groupByAddedDay, groupByYear, isFiltering, splitByUploader, yearsOf, type Filters, type SortMode } from '../lib/filter';
+import { useStore } from '../lib/store';
 import { layoutMonths, optionsFor, tileRatio } from '../lib/layout';
 import { href, linkClick } from '../router';
 
@@ -18,12 +20,35 @@ interface Props {
   people: Person[];
   filters: Filters;
   onFilters: (f: Filters) => void;
+  sort: SortMode;
+  onSort: (s: SortMode) => void;
 }
 
-export function Timeline({ all, visible, people, filters, onFilters }: Props) {
+export function Timeline({ all, visible, people, filters, onFilters, sort, onSort }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeYear, setActiveYear] = useState<string | null>(null);
-  const years = useMemo(() => groupByYear(visible), [visible]);
+  const byDate = sort === 'date';
+  const years = useMemo(() => (byDate ? groupByYear(visible) : []), [visible, byDate]);
+  const days = useMemo(
+    () =>
+      byDate
+        ? []
+        : groupByAddedDay(visible).map((d) => ({
+            ...d,
+            // Within a day, one group per person who added photos: "par Mamie", "par Kevin"…
+            groups: splitByUploader(d.photos).map((g) => ({ key: `${d.key}|${g.by}`, by: g.by, photos: g.photos })),
+          })),
+    [visible, byDate],
+  );
+  const names = useStore(membersStore);
+  const uploaderLabel = (key: string, width: number) => {
+    const group = days.flatMap((d) => d.groups).find((g) => g.key === key);
+    if (!group?.by) return '';
+    const name = displayName(group.by, names);
+    const full = `${t.byName(name)} · ${t.photoCount(group.photos.length)}`;
+    if (full.length * 9.5 <= width) return full;
+    return t.byName(name).length * 9.5 <= width ? t.byName(name) : name;
+  };
   const allYears = useMemo(() => yearsOf(all), [all]);
   const nameOf = useMemo(() => new Map(people.map((p) => [p.id, p.name])), [people]);
   const photosBox = useRef<HTMLDivElement>(null);
@@ -65,7 +90,7 @@ export function Timeline({ all, visible, people, filters, onFilters }: Props) {
         )}
       </header>
 
-      <div class="shell">
+      <div class={byDate ? 'shell' : 'shell is-recent'}>
         <aside class={sheetOpen ? 'sidebar is-open' : 'sidebar'} aria-label={t.filters}>
           <div class="sheet-header">
             <h2>{t.filters}</h2>
@@ -84,6 +109,8 @@ export function Timeline({ all, visible, people, filters, onFilters }: Props) {
 
         <main class="content">
           {config.welcome && !filtering && <p class="welcome">{config.welcome}</p>}
+
+          {all.length > 0 && <SortToggle sort={sort} onSort={onSort} />}
 
           {filtering && (
             <div class="active-filters">
@@ -121,13 +148,22 @@ export function Timeline({ all, visible, people, filters, onFilters }: Props) {
                   <span class="year-num">{y.year}</span>
                   <span class="year-count">{t.photoCount(y.photos.length)}</span>
                 </h2>
-                <YearPhotos year={y} width={width} nameOf={nameOf} />
+                <PhotoGroups groups={y.months} width={width} nameOf={nameOf} label={monthLabel} />
+              </section>
+            ))}
+            {days.map((d) => (
+              <section key={d.key || 'earlier'} class="day-section">
+                <h2 class="day-title">
+                  <span>{formatAddedDay(d.key)}</span>
+                  <span class="year-count">{t.photoCount(d.photos.length)}</span>
+                </h2>
+                <PhotoGroups groups={d.groups} width={width} nameOf={nameOf} label={uploaderLabel} showYear />
               </section>
             ))}
           </div>
         </main>
 
-        <YearNav years={years} active={activeYear} variant="rail" />
+        {byDate && <YearNav years={years} active={activeYear} variant="rail" />}
       </div>
 
       {all.length > 0 && (
@@ -158,27 +194,61 @@ function useWidth(ref: { current: HTMLElement | null }): number {
   return width;
 }
 
-/** One year's photos, grouped by month (see lib/layout.ts for how lines are built). */
-function YearPhotos({ year, width, nameOf }: { year: YearGroup; width: number; nameOf: Map<string, string> }) {
-  const o = optionsFor(width);
-  const lines = useMemo(
-    () => layoutMonths(year.months.map((m) => ({ key: m.key, ratios: m.photos.map(tileRatio) })), o),
-    [year, width],
+/** "Par date" / "Derniers ajouts": two big buttons at the top of the album. */
+function SortToggle({ sort, onSort }: { sort: SortMode; onSort: (s: SortMode) => void }) {
+  const choose = (s: SortMode) => {
+    if (s === sort) return;
+    onSort(s);
+    window.scrollTo({ top: 0 });
+  };
+  return (
+    <div class="sort-toggle" role="group" aria-label={t.sortBy}>
+      <button type="button" aria-pressed={sort === 'date'} onClick={() => choose('date')}>
+        <Icon name="calendar" size={20} />
+        <span>{t.sortDate}</span>
+      </button>
+      <button type="button" aria-pressed={sort === 'added'} onClick={() => choose('added')}>
+        <Icon name="clock" size={20} />
+        <span>{t.sortAdded}</span>
+      </button>
+    </div>
   );
-  const months = new Map(year.months.map((m) => [m.key, m.photos]));
+}
+
+/** Month names above each month, abbreviated only when the full name wouldn't fit (≈11px per letter). */
+function monthLabel(key: string, width: number) {
+  const name = formatMonthName(key);
+  return name.length * 11 > width ? formatMonthName(key, true) : name;
+}
+
+interface PhotoGroupsProps {
+  groups: { key: string; photos: TimelineEntry[] }[];
+  width: number;
+  nameOf: Map<string, string>;
+  /** Title above each group (the month name), given the width the layout gave it. */
+  label?: (key: string, width: number) => string;
+  /** Show the year each photo was taken on its thumbnail ("Derniers ajouts" view). */
+  showYear?: boolean;
+}
+
+/** Groups of photos laid out in lines (see lib/layout.ts): small groups share a line. */
+function PhotoGroups({ groups, width, nameOf, label, showYear = false }: PhotoGroupsProps) {
+  const o = optionsFor(width);
+  const lines = useMemo(() => layoutMonths(groups.map((g) => ({ key: g.key, ratios: g.photos.map(tileRatio) })), o), [groups, width]);
+  const byKey = new Map(groups.map((g) => [g.key, g.photos]));
   return (
     <div class="year-photos">
       {lines.map((line) => (
         <div key={line[0].key} class="month-line" style={{ gap: `${o.monthGap}px` }}>
           {line.map((m) => {
-            const photos = months.get(m.key)!;
-            const name = formatMonthName(m.key);
+            const photos = byKey.get(m.key)!;
             return (
               <div key={m.key} class="month" style={{ width: `${m.width}px` }}>
-                <h3 class="month-title" title={name}>
-                  {/* Abbreviate only when the full name wouldn't fit (≈11px per letter at this size). */}
-                  {name.length * 11 > m.width ? formatMonthName(m.key, true) : name}
-                </h3>
+                {label && (
+                  <h3 class="month-title" title={label(m.key, Infinity)}>
+                    {label(m.key, m.width)}
+                  </h3>
+                )}
                 {m.rows.map((row, i) => (
                   <div key={i} class="month-row" style={{ gap: `${o.gap}px`, marginTop: i ? `${o.gap}px` : undefined }}>
                     {row.map(({ index, width, height }) => {
@@ -186,7 +256,7 @@ function YearPhotos({ year, width, nameOf }: { year: YearGroup; width: number; n
                       const alt = [formatDate(p.t, false), ...p.p.map((id) => nameOf.get(id) ?? id), p.c ? t.commentCount(p.c) : '']
                         .filter(Boolean)
                         .join(', ');
-                      return <Tile key={p.id} photo={p} alt={alt} width={width} height={height} />;
+                      return <Tile key={p.id} photo={p} alt={alt} width={width} height={height} showYear={showYear} />;
                     })}
                   </div>
                 ))}
@@ -200,7 +270,8 @@ function YearPhotos({ year, width, nameOf }: { year: YearGroup; width: number; n
 }
 
 /** One thumbnail, at the size the layout gave it. */
-function Tile({ photo, alt, width, height }: { photo: TimelineEntry; alt: string; width: number; height: number }) {
+function Tile(props: { photo: TimelineEntry; alt: string; width: number; height: number; showYear: boolean }) {
+  const { photo, alt, width, height, showYear } = props;
   const img = useRef<HTMLImageElement>(null);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
@@ -217,6 +288,11 @@ function Tile({ photo, alt, width, height }: { photo: TimelineEntry; alt: string
         loading="lazy"
         decoding="async"
       />
+      {showYear && (
+        <span class="tile-year" aria-hidden="true">
+          {photo.t.slice(0, 4)}
+        </span>
+      )}
       {photo.c ? (
         <span class="tile-badge" aria-hidden="true">
           <Icon name="message" size={15} />

@@ -1,7 +1,8 @@
 // All /api/* routes. Kept framework-free so it can be unit-tested with a fake R2 bucket.
 //
 //   GET   /api/me                          -> { user, name }
-//   PUT   /api/me            {name}        -> { user, name } (display name shown with comments)
+//   PUT   /api/me            {name}        -> { user, name } (display name shown with comments and uploads)
+//   GET   /api/members                     -> MembersFile (everyone's display name, by sign-in identity)
 //   GET   /api/timeline                    -> TimelineIndex (index.json)
 //   GET   /api/people                      -> PeopleFile
 //   POST  /api/people        {name}        -> Person (existing one if the name is already there)
@@ -13,6 +14,7 @@
 //   POST  /api/photos/:id/comments  {text} -> PhotoMeta (needs a display name, see PUT /api/me)
 //   DELETE /api/photos/:id/comments/:cid   -> PhotoMeta (only the comment's author)
 //   POST  /api/admin/rebuild-index         -> { count } (regenerate index.json from meta/*.json)
+//   POST  /api/admin/backfill-uploads      -> { remaining } (add missing upload date/uploader to index.json, in batches)
 //
 // Uploads are raw PUTs streamed straight into R2 (no multipart parsing), which keeps
 // CPU time per request tiny and fits the Workers free plan.
@@ -32,6 +34,7 @@ import {
   type PeopleFile,
   type Person,
   type PhotoMeta,
+  type TimelineEntry,
   type TimelineIndex,
   type UpdatePhotoRequest,
   type Variant,
@@ -103,6 +106,10 @@ async function route(request: Request, env: Env, user: string): Promise<Response
     if (method === 'PUT') return json({ user, name: await setDisplayName(bucket, user, await readBody(request)) });
   }
 
+  if (parts[0] === 'members' && parts.length === 1 && method === 'GET') {
+    return serveJsonObject(request, bucket, MEMBERS_KEY, { v: 1, names: {} } satisfies MembersFile);
+  }
+
   if (parts[0] === 'photos' && parts[2] === 'comments' && PHOTO_ID_RE.test(parts[1] ?? '')) {
     if (parts.length === 3 && method === 'POST') return json(await addComment(bucket, parts[1], await readBody(request), user), 201);
     if (parts.length === 4 && method === 'DELETE') return json(await deleteComment(bucket, parts[1], parts[3], user));
@@ -130,6 +137,10 @@ async function route(request: Request, env: Env, user: string): Promise<Response
       if (method === 'PUT') return uploadVariant(request, bucket, id, variant);
       if (method === 'GET' || method === 'HEAD') return serveImage(request, bucket, id, variant, url);
     }
+  }
+
+  if (parts[0] === 'admin' && parts[1] === 'backfill-uploads' && parts.length === 2 && method === 'POST') {
+    return json({ remaining: await backfillUploadInfo(bucket) });
   }
 
   if (parts[0] === 'admin' && parts[1] === 'rebuild-index' && parts.length === 2 && method === 'POST') {
@@ -398,6 +409,37 @@ async function upsertIndexEntry(bucket: R2Bucket, meta: PhotoMeta) {
       return { ...index, photos };
     },
   );
+}
+
+/**
+ * Index entries written before upload info was recorded have no `u` (date) or `b` (uploader).
+ * Fill in a batch of them from their meta files (a small batch keeps each request well within
+ * Workers' limits); the app calls this repeatedly until nothing remains. Returns how many
+ * entries still lack upload info.
+ */
+export async function backfillUploadInfo(bucket: R2Bucket, batch = 40): Promise<number> {
+  const lacks = (p: TimelineEntry) => !p.u || !p.b;
+  const index = await readJson<TimelineIndex>(bucket, INDEX_KEY);
+  const missing = index?.photos.filter(lacks).slice(0, batch) ?? [];
+  if (missing.length === 0) return 0;
+  const metas = await Promise.all(missing.map((p) => readJson<PhotoMeta>(bucket, metaKey(p.id))));
+  const found = new Map(metas.filter((m): m is PhotoMeta => m !== null).map((m) => [m.id, m]));
+  const updated = await updateJson<TimelineIndex>(
+    bucket,
+    INDEX_KEY,
+    () => ({ v: 1, photos: [] }),
+    (current) => {
+      let changed = false;
+      const photos = current.photos.map((p) => {
+        const meta = lacks(p) && found.get(p.id);
+        if (!meta) return p;
+        changed = true;
+        return { ...p, u: meta.uploadedAt, b: meta.uploadedBy };
+      });
+      return changed ? { ...current, photos } : null;
+    },
+  );
+  return updated.photos.filter(lacks).length;
 }
 
 /** Regenerate index.json from every meta/<id>.json. Safe to run any time. */

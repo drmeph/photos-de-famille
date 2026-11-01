@@ -70,6 +70,17 @@ const fr = {
   tapToTag: 'Touchez les noms des personnes présentes.',
   addCaption: 'Ajouter une légende',
   uploadHint: 'Les photos sont ajoutées une par une. Vous pouvez continuer à regarder l’album.',
+  welcomeTitle: 'Bienvenue dans l’album !',
+  welcomeText: 'Comment vous appelez-vous ? Votre prénom sera affiché sur les photos que vous ajoutez et avec vos commentaires.',
+  continue: 'Continuer',
+  later: 'Plus tard',
+  byName: (name: string) => `par ${name}`,
+  sortBy: 'Trier les photos',
+  sortDate: 'Par date',
+  sortAdded: 'Derniers ajouts',
+  today: 'Aujourd’hui',
+  yesterday: 'Hier',
+  addedEarlier: 'Ajouts plus anciens',
   dropTitle: 'Glissez vos photos ici',
   dropMore: 'Glissez d’autres photos ici',
   dropRelease: 'Relâchez pour ajouter les photos',
@@ -160,6 +171,17 @@ const en: Strings = {
   tapToTag: 'Tap the names of the people in it.',
   addCaption: 'Add a caption',
   uploadHint: 'Photos are added one by one. You can keep browsing the album.',
+  welcomeTitle: 'Welcome to the album!',
+  welcomeText: 'What’s your name? Your first name will be shown on the photos you add and with your comments.',
+  continue: 'Continue',
+  later: 'Later',
+  byName: (name: string) => `by ${name}`,
+  sortBy: 'Sort photos',
+  sortDate: 'By date',
+  sortAdded: 'Latest additions',
+  today: 'Today',
+  yesterday: 'Yesterday',
+  addedEarlier: 'Earlier additions',
   dropTitle: 'Drag your photos here',
   dropMore: 'Drag more photos here',
   dropRelease: 'Drop to add the photos',
@@ -225,4 +247,22 @@ export function timeAgo(iso: string): string {
   if (seconds < 86400) return rtf.format(-Math.floor(seconds / 3600), 'hour');
   if (seconds < 28 * 86400) return rtf.format(-Math.floor(seconds / 86400), 'day');
   return new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+/** "Aujourd'hui", "Hier", "lundi 27 octobre" (with the year if it isn't this year). '' = date unknown. */
+export function formatAddedDay(day: string): string {
+  if (!day) return t.addedEarlier;
+  const [y, m, d] = day.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const today = new Date();
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+  if (same(date, today)) return t.today;
+  if (same(date, yesterday)) return t.yesterday;
+  return date.toLocaleDateString(locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: y === today.getFullYear() ? undefined : 'numeric',
+  });
 }

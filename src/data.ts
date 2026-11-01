@@ -9,6 +9,21 @@ export type LoadState<T> = { status: 'loading' } | { status: 'error' } | { statu
 export const timeline = createStore<LoadState<TimelineEntry[]>>({ status: 'loading' });
 export const people = createStore<Person[]>([]);
 export const me = createStore<Me | null>(null);
+/** Display name each family member chose, by sign-in identity (email). */
+export const members = createStore<Record<string, string>>({});
+
+export async function loadMembers() {
+  try {
+    members.set((await api.members()).names);
+  } catch {
+    // Non-fatal: names fall back to the start of the email address.
+  }
+}
+
+/** The name to show for a sign-in identity: the one they chose, else the part of the email before "@". */
+export function displayName(user: string, names: Record<string, string>): string {
+  return names[user] ?? user.split('@')[0];
+}
 
 export async function loadMe() {
   try {
@@ -19,16 +34,41 @@ export async function loadMe() {
 }
 
 export async function setMyName(name: string) {
-  me.set(await api.setName(name));
+  const updated = await api.setName(name);
+  me.set(updated);
+  if (updated.name) members.set((names) => ({ ...names, [updated.user]: updated.name! }));
 }
 
 export async function loadTimeline() {
   try {
     const index = await api.timeline();
     timeline.set({ status: 'ready', data: index.photos });
+    if (index.photos.some((p) => !p.u || !p.b)) void backfillUploadInfo();
   } catch {
     // Keep showing what we have if this was only a refresh.
     if (timeline.get().status !== 'ready') timeline.set({ status: 'error' });
+  }
+}
+
+let backfilling = false;
+
+/** Albums started before "latest additions" existed lack the upload date and uploader in the
+ *  timeline index. Ask the server to fill them in, a batch at a time, then reload. Runs once
+ *  per session. */
+async function backfillUploadInfo() {
+  if (backfilling) return;
+  backfilling = true;
+  try {
+    let previous = Infinity;
+    for (;;) {
+      const { remaining } = await api.backfillUploads();
+      if (remaining === 0 || remaining >= previous) break; // done, or stuck: stop either way
+      previous = remaining;
+    }
+    const index = await api.timeline();
+    timeline.set({ status: 'ready', data: index.photos });
+  } catch {
+    backfilling = false; // try again on the next load
   }
 }
 
