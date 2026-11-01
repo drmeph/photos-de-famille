@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyFilters, groupByAddedDay, groupByYear, localDay, sortByAdded, yearsOf } from '../src/lib/filter';
+import { applyFilters, groupByAddedDay, groupByYear, localDay, sortByAdded, splitByUploader, yearsOf } from '../src/lib/filter';
 import { parseExifDate } from '../src/lib/dates';
 import type { TimelineEntry } from '../shared/types';
 
@@ -68,5 +68,21 @@ describe('latest additions', () => {
       ['', ['legacy']],
     ]);
     expect(localDay(new Date(2026, 0, 5))).toBe('2026-01-05');
+  });
+});
+
+describe('who added what', () => {
+  it('splits a day by uploader, most recent first, keeping order inside each group', () => {
+    const day = [
+      { ...e('1', '2020-01-01T00:00:00'), b: 'mamie@x' },
+      { ...e('2', '2020-01-01T00:00:00'), b: 'kevin@x' },
+      { ...e('3', '2020-01-01T00:00:00'), b: 'mamie@x' },
+      e('4', '2020-01-01T00:00:00'),
+    ];
+    expect(splitByUploader(day).map((g) => [g.by, g.photos.map((p) => p.id)])).toEqual([
+      ['mamie@x', ['1', '3']],
+      ['kevin@x', ['2']],
+      ['', ['4']],
+    ]);
   });
 });

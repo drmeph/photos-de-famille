@@ -86,3 +86,15 @@ export function localDay(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
+
+/** Split one day's photos by who added them, in order of their most recent addition. */
+export function splitByUploader(photos: TimelineEntry[]): { by: string; photos: TimelineEntry[] }[] {
+  const groups = new Map<string, TimelineEntry[]>();
+  for (const e of photos) {
+    const by = e.b ?? '';
+    const list = groups.get(by);
+    if (list) list.push(e);
+    else groups.set(by, [e]);
+  }
+  return [...groups].map(([by, list]) => ({ by, photos: list }));
+}

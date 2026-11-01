@@ -3,8 +3,9 @@ import type { Person, PhotoMeta, TimelineEntry, UpdatePhotoRequest } from '../..
 import { api, imageUrl } from '../api';
 import { Icon } from '../components/Icon';
 import { Comments } from '../components/Comments';
-import { PersonChips } from '../components/PersonChips';
-import { addPerson, patchTimeline, type LoadState } from '../data';
+import { Avatar, PersonChips } from '../components/PersonChips';
+import { addPerson, displayName, members as membersStore, patchTimeline, type LoadState } from '../data';
+import { useStore } from '../lib/store';
 import { albumTitle, formatDate, locale, t, yearsAgo } from '../i18n';
 import { goBack, href, navigate } from '../router';
 
@@ -303,9 +304,13 @@ function Details({ meta, people, onToggle, onAddPerson, onUpdate }: DetailsProps
 }
 
 function PhotoFooter({ meta }: { meta: PhotoMeta }) {
+  const names = useStore(membersStore);
   return (
     <footer class="detail-footer">
-      <p class="muted">{t.addedBy(meta.uploadedBy, new Date(meta.uploadedAt).toLocaleDateString(locale))}</p>
+      <p class="muted uploaded-by">
+        <Avatar name={displayName(meta.uploadedBy, names)} />
+        {t.addedBy(displayName(meta.uploadedBy, names), new Date(meta.uploadedAt).toLocaleDateString(locale))}
+      </p>
       <a class="btn btn-ghost btn-small" href={`${imageUrl(meta.id, 'original')}?download=1`}>
         <Icon name="download" size={18} />
         <span>{t.downloadOriginal}</span>

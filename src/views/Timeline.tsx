@@ -8,7 +8,9 @@ import { Avatar } from '../components/PersonChips';
 import { YearNav, useActiveYear } from '../components/YearNav';
 import { config } from '../config';
 import { albumTitle, formatAddedDay, formatDate, formatMonthName, t } from '../i18n';
-import { groupByAddedDay, groupByYear, isFiltering, yearsOf, type Filters, type SortMode } from '../lib/filter';
+import { displayName, members as membersStore } from '../data';
+import { groupByAddedDay, groupByYear, isFiltering, splitByUploader, yearsOf, type Filters, type SortMode } from '../lib/filter';
+import { useStore } from '../lib/store';
 import { layoutMonths, optionsFor, tileRatio } from '../lib/layout';
 import { href, linkClick } from '../router';
 
@@ -27,7 +29,26 @@ export function Timeline({ all, visible, people, filters, onFilters, sort, onSor
   const [activeYear, setActiveYear] = useState<string | null>(null);
   const byDate = sort === 'date';
   const years = useMemo(() => (byDate ? groupByYear(visible) : []), [visible, byDate]);
-  const days = useMemo(() => (byDate ? [] : groupByAddedDay(visible)), [visible, byDate]);
+  const days = useMemo(
+    () =>
+      byDate
+        ? []
+        : groupByAddedDay(visible).map((d) => ({
+            ...d,
+            // Within a day, one group per person who added photos: "par Mamie", "par Kevin"…
+            groups: splitByUploader(d.photos).map((g) => ({ key: `${d.key}|${g.by}`, by: g.by, photos: g.photos })),
+          })),
+    [visible, byDate],
+  );
+  const names = useStore(membersStore);
+  const uploaderLabel = (key: string, width: number) => {
+    const group = days.flatMap((d) => d.groups).find((g) => g.key === key);
+    if (!group?.by) return '';
+    const name = displayName(group.by, names);
+    const full = `${t.byName(name)} · ${t.photoCount(group.photos.length)}`;
+    if (full.length * 9.5 <= width) return full;
+    return t.byName(name).length * 9.5 <= width ? t.byName(name) : name;
+  };
   const allYears = useMemo(() => yearsOf(all), [all]);
   const nameOf = useMemo(() => new Map(people.map((p) => [p.id, p.name])), [people]);
   const photosBox = useRef<HTMLDivElement>(null);
@@ -136,7 +157,7 @@ export function Timeline({ all, visible, people, filters, onFilters, sort, onSor
                   <span>{formatAddedDay(d.key)}</span>
                   <span class="year-count">{t.photoCount(d.photos.length)}</span>
                 </h2>
-                <PhotoGroups groups={[{ key: d.key || 'earlier', photos: d.photos }]} width={width} nameOf={nameOf} showYear />
+                <PhotoGroups groups={d.groups} width={width} nameOf={nameOf} label={uploaderLabel} showYear />
               </section>
             ))}
           </div>
@@ -224,7 +245,7 @@ function PhotoGroups({ groups, width, nameOf, label, showYear = false }: PhotoGr
             return (
               <div key={m.key} class="month" style={{ width: `${m.width}px` }}>
                 {label && (
-                  <h3 class="month-title" title={formatMonthName(m.key)}>
+                  <h3 class="month-title" title={label(m.key, Infinity)}>
                     {label(m.key, m.width)}
                   </h3>
                 )}

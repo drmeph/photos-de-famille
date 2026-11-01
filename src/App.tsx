@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { Icon } from './components/Icon';
-import { loadMe, loadPeople, loadTimeline, people as peopleStore, timeline as timelineStore } from './data';
+import { WelcomeName } from './components/WelcomeName';
+import { loadMe, loadMembers, loadPeople, me as meStore, loadTimeline, people as peopleStore, timeline as timelineStore } from './data';
 import { albumTitle, t } from './i18n';
 import { applyFilters, NO_FILTERS, sortByAdded, type Filters, type SortMode } from './lib/filter';
 import { useStore } from './lib/store';
@@ -11,6 +12,7 @@ import { UploadView } from './views/UploadView';
 
 const FILTERS_KEY = 'album.filters';
 const SORT_KEY = 'album.sort';
+const NAME_LATER_KEY = 'album.nameLater';
 
 function loadFilters(): Filters {
   try {
@@ -34,16 +36,34 @@ export function App() {
   const people = useStore(peopleStore);
   const [filters, setFilters] = useState(loadFilters);
   const [sort, setSort] = useState(loadSort);
+  const me = useStore(meStore);
+  const [nameLater, setNameLater] = useState(() => {
+    try {
+      return sessionStorage.getItem(NAME_LATER_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const later = () => {
+    setNameLater(true);
+    try {
+      sessionStorage.setItem(NAME_LATER_KEY, '1');
+    } catch {
+      // asked again on reload: fine
+    }
+  };
 
   useEffect(() => {
     void loadTimeline();
     void loadPeople();
     void loadMe();
+    void loadMembers();
     // Pick up what others added while this tab sat in the background.
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
         void loadTimeline();
         void loadPeople();
+        void loadMembers();
       }
     };
     document.addEventListener('visibilitychange', onVisible);
@@ -101,6 +121,7 @@ export function App() {
       />
       {route.name === 'photo' && <PhotoView id={route.id} list={visible} people={people} />}
       {route.name === 'upload' && <UploadView />}
+      {me && !me.name && !nameLater && <WelcomeName onLater={later} />}
     </>
   );
 }

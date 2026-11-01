@@ -72,6 +72,7 @@ export interface TimelineEntry {
   p: string[];
   c?: number; // number of comments, omitted when there are none
   u?: string; // when it was added (ISO); missing only on entries written before this field existed
+  b?: string; // who added it (sign-in identity, see members.json for the name); same caveat
 }
 
 /** index.json: every photo, newest first. Rebuilt incrementally on each write. */
@@ -105,7 +106,7 @@ export const NAME_MAX = 40;
 export const LOCAL_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
 
 export function toTimelineEntry(m: PhotoMeta): TimelineEntry {
-  const entry: TimelineEntry = { id: m.id, t: m.takenAt, w: m.width, h: m.height, p: m.people, u: m.uploadedAt };
+  const entry: TimelineEntry = { id: m.id, t: m.takenAt, w: m.width, h: m.height, p: m.people, u: m.uploadedAt, b: m.uploadedBy };
   if (m.comments?.length) entry.c = m.comments.length;
   return entry;
 }

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { backfillUploadDates, handleApi, rebuildIndex, slugify } from '../server/api';
+import { backfillUploadInfo, handleApi, rebuildIndex, slugify } from '../server/api';
 import type { Env } from '../server/env';
 import { INDEX_KEY, metaKey } from '../server/storage';
 import type { PeopleFile, PhotoMeta, TimelineIndex } from '../shared/types';
@@ -54,7 +54,7 @@ describe('timeline', () => {
     expect((await uploadPhoto(ID2, '2020-01-01T10:00:00')).status).toBe(201);
     const index = (await (await req('GET', 'timeline')).json()) as TimelineIndex;
     expect(index.photos.map((p) => p.id)).toEqual([ID2, ID]);
-    expect(index.photos[1]).toEqual({ id: ID, t: '1985-06-01T10:00:00', w: 2048, h: 1536, p: [], u: expect.any(String) });
+    expect(index.photos[1]).toEqual({ id: ID, t: '1985-06-01T10:00:00', w: 2048, h: 1536, p: [], u: expect.any(String), b: 'mamie@example.com' });
   });
 
   it('answers 304 when the index has not changed', async () => {
@@ -212,8 +212,10 @@ describe('display names and comments', () => {
 
   it('stores the display name each person chooses', async () => {
     expect(await (await req('GET', 'me')).json()).toEqual({ user: 'mamie@example.com', name: null });
+    expect(await (await req('GET', 'members')).json()).toEqual({ v: 1, names: {} });
     await req('PUT', 'me', { name: '  Mamie   Rose ' });
     expect(await (await req('GET', 'me')).json()).toEqual({ user: 'mamie@example.com', name: 'Mamie Rose' });
+    expect(await (await req('GET', 'members')).json()).toEqual({ v: 1, names: { 'mamie@example.com': 'Mamie Rose' } });
     expect((await req('PUT', 'me', { name: '' })).status).toBe(400);
   });
 
@@ -287,10 +289,11 @@ describe('shared-password mode', () => {
 });
 
 describe('upload dates in the timeline', () => {
-  it('records when each photo was added', async () => {
+  it('records when and by whom each photo was added', async () => {
     await uploadPhoto(ID);
     const entry = (r2.json(INDEX_KEY) as TimelineIndex).photos[0];
     expect(entry.u).toBe((r2.json(metaKey(ID)) as PhotoMeta).uploadedAt);
+    expect(entry.b).toBe('mamie@example.com');
   });
 
   it('fills in missing dates on old index entries, in batches', async () => {
@@ -298,13 +301,16 @@ describe('upload dates in the timeline', () => {
     for (const id of ids) await uploadPhoto(id);
     // Simulate an index written before upload dates existed.
     const old = r2.json(INDEX_KEY) as TimelineIndex;
-    await r2.put(INDEX_KEY, JSON.stringify({ ...old, photos: old.photos.map(({ u, ...rest }) => rest) }));
+    await r2.put(INDEX_KEY, JSON.stringify({ ...old, photos: old.photos.map(({ u, b, ...rest }) => rest) }));
 
-    expect(await backfillUploadDates(asBucket(r2), 2)).toBe(3);
-    expect(await backfillUploadDates(asBucket(r2), 2)).toBe(1);
-    expect(await backfillUploadDates(asBucket(r2), 2)).toBe(0);
+    expect(await backfillUploadInfo(asBucket(r2), 2)).toBe(3);
+    expect(await backfillUploadInfo(asBucket(r2), 2)).toBe(1);
+    expect(await backfillUploadInfo(asBucket(r2), 2)).toBe(0);
     const photos = (r2.json(INDEX_KEY) as TimelineIndex).photos;
-    for (const p of photos) expect(p.u).toBe((r2.json(metaKey(p.id)) as PhotoMeta).uploadedAt);
+    for (const p of photos) {
+      expect(p.u).toBe((r2.json(metaKey(p.id)) as PhotoMeta).uploadedAt);
+      expect(p.b).toBe('mamie@example.com');
+    }
     const res = await req('POST', 'admin/backfill-uploads');
     expect(await res.json()).toEqual({ remaining: 0 });
   });
