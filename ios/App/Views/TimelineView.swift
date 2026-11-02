@@ -32,6 +32,10 @@ struct AlbumTimelineView: View {
                             DaySection(day: day, width: width, onOpen: onOpen).id(day.id)
                         }
                     }
+                    // Rebuilt on every filter change: when two changes come quickly (tapping
+                    // people in the search sheet) and the first resizes the header, the lazy
+                    // stack could keep showing the intermediate pills or photos.
+                    .id(model.filters)
                     .scrollTargetLayout()
                     .padding(.horizontal, 16)
                     .padding(.bottom, 24)
