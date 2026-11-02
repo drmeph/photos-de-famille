@@ -46,6 +46,7 @@ family one shared place for them that:
   [Atkinson Hyperlegible](https://www.brailleinstitute.org/freefont/) font made for readers with
   low vision, and nothing that relies on hovering with a mouse.
 - **Phone, tablet and computer**, and it can be added to a phone's home screen like an app.
+  There's also a native **iPhone and iPad app** with the same features ([ios/](ios/README.md)).
 - **Your family's album**: set its name, language (French or English), color and a welcome
   message, with no code changes.
 
@@ -151,6 +152,7 @@ server/             API logic, framework-free so it can be unit-tested
 shared/             Data model and settings shared by app and server
 tests/              Vitest tests (API with an in-memory R2, sign-in, settings)
 docs/               Deploy guide, configuration, sign-in, architecture
+ios/                Native iPhone/iPad app (SwiftUI), same server and features
 .github/workflows/  Checks every pull request; deploys every push to main
 ```
 

@@ -3,6 +3,7 @@
 //   GET   /api/me                          -> { user, name }
 //   PUT   /api/me            {name}        -> { user, name } (display name shown with comments and uploads)
 //   GET   /api/members                     -> MembersFile (everyone's display name, by sign-in identity)
+//   GET   /api/config                      -> AlbumConfig (family settings; the website gets them in the page)
 //   GET   /api/timeline                    -> TimelineIndex (index.json)
 //   GET   /api/people                      -> PeopleFile
 //   POST  /api/people        {name}        -> Person (existing one if the name is already there)
@@ -39,6 +40,7 @@ import {
   type UpdatePhotoRequest,
   type Variant,
 } from '../shared/types';
+import { getConfig } from './config';
 import type { Env } from './env';
 import {
   ConflictError,
@@ -105,6 +107,8 @@ async function route(request: Request, env: Env, user: string): Promise<Response
     if (method === 'GET') return json({ user, name: await displayName(bucket, user) });
     if (method === 'PUT') return json({ user, name: await setDisplayName(bucket, user, await readBody(request)) });
   }
+
+  if (parts[0] === 'config' && parts.length === 1 && method === 'GET') return json(getConfig(env));
 
   if (parts[0] === 'members' && parts.length === 1 && method === 'GET') {
     return serveJsonObject(request, bucket, MEMBERS_KEY, { v: 1, names: {} } satisfies MembersFile);
