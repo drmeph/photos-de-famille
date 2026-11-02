@@ -2,7 +2,7 @@ import Foundation
 
 // Filtering, sorting and grouping of the timeline, ported from the website (src/lib/filter.ts).
 
-public struct Filters: Codable, Equatable, Sendable {
+public struct Filters: Codable, Hashable, Sendable {
     public var people: [String] = [] // a photo must include *all* of these
     public var fromYear: Int?
     public var toYear: Int?
