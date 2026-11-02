@@ -65,6 +65,16 @@ width and recomputed on resize.
 
 Images of a finalized photo can't be overwritten (409).
 
+## iOS app
+
+The native app ([`ios/`](../ios/README.md)) uses the same API. It gets the family settings from
+`GET /api/config` (the website receives them embedded in the page instead). It signs in through
+Cloudflare Access's own login page in a web view, then sends the resulting token
+(`cf-access-token` header and `CF_Authorization` cookie) with every request, so the server's
+checks are the same as for the website. Image processing (EXIF date, resizing, content-hash id)
+follows the same rules with ImageIO, so a photo added from the app and from the website gets the
+same treatment.
+
 ## New releases on open pages
 
 Phones often resume the album from memory instead of reloading it (especially from the home

@@ -315,3 +315,11 @@ describe('upload dates in the timeline', () => {
     expect(await res.json()).toEqual({ remaining: 0 });
   });
 });
+
+describe('album settings for apps', () => {
+  it('returns the family settings, with defaults', async () => {
+    expect(await (await req('GET', 'config')).json()).toEqual({ title: null, language: 'auto', color: '#7a4b2a', welcome: '' });
+    env = { ...env, ALBUM_TITLE: 'Famille Martin', ALBUM_LANGUAGE: 'fr', ALBUM_COLOR: '"#1f4e79"' };
+    expect(await (await req('GET', 'config')).json()).toEqual({ title: 'Famille Martin', language: 'fr', color: '#1f4e79', welcome: '' });
+  });
+});
