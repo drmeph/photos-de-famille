@@ -1,1 +1,2 @@
 "NSCameraUsageDescription" = "Prendre des photos pour les ajouter à l’album de famille.";
+"NSPhotoLibraryAddUsageDescription" = "Enregistrer des photos de l’album de famille dans votre photothèque.";

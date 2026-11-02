@@ -4,7 +4,7 @@
 #   open AlbumFamilial.xcodeproj
 name: AlbumFamilial
 options:
-  bundleIdPrefix: org.example
+  bundleIdPrefix: tech.dorfer
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -35,6 +35,7 @@ targets:
         CFBundleLocalizations: [en, fr]
         UILaunchScreen: {}
         NSCameraUsageDescription: Take photos to add them to the family album.
+        NSPhotoLibraryAddUsageDescription: Save photos from the family album to your library.
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
@@ -47,9 +48,9 @@ targets:
         ITSAppUsesNonExemptEncryption: false
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: org.example.album-familial # change to your own (e.g. com.yourname.album)
+        PRODUCT_BUNDLE_IDENTIFIER: album-familial.dorfer.tech
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CODE_SIGN_STYLE: Automatic
-        DEVELOPMENT_TEAM: "" # your Apple Developer team id, or pick it in Xcode > Signing & Capabilities
+        DEVELOPMENT_TEAM: WBXRMH2S9A # Dorfer Tech Corp
