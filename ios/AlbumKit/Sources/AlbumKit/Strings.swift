@@ -83,6 +83,7 @@ public struct Strings: Sendable {
     public var captionPlaceholder: String { s("Où ? Quelle occasion ? (facultatif)", "Where? What occasion? (optional)") }
     public func addedBy(_ who: String, _ when: String) -> String { s("Ajoutée par \(who) le \(when)", "Added by \(who) on \(when)") }
     public var shareOriginal: String { s("Partager l’original", "Share the original") }
+    public var enlarge: String { s("Agrandir la photo", "Enlarge the photo") }
 
     // Comments
     public var comments: String { s("Commentaires", "Comments") }

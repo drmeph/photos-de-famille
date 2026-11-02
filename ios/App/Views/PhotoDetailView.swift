@@ -12,6 +12,7 @@ struct PhotoDetailView: View {
     @State private var editingCaption = false
     @State private var share: IdentifiedURL?
     @State private var downloading = false
+    @State private var zooming = false
 
     var body: some View {
         let s = model.strings
@@ -54,20 +55,39 @@ struct PhotoDetailView: View {
             if let meta = editor.meta { CaptionSheet(caption: meta.caption) { text in Task { await editor.setCaption(text) } } }
         }
         .sheet(item: $share) { file in ShareSheet(items: [file.url]) }
+        .fullScreenCover(isPresented: $zooming) { ZoomViewer(id: id) }
     }
 
     /// The photo on a dark stage, with a blurred glow of its own colors behind it.
+    /// The stage's size is fixed first; the glow (which overflows: it *fills*) and the photo
+    /// (which *fits*, so landscape photos show whole) are overlays, so they can't widen the page.
     private var stage: some View {
-        ZStack {
-            Color(red: 0.08, green: 0.07, blue: 0.055)
-            RemoteImage(id: id, variant: .thumb, placeholder: .clear)
-                .blur(radius: 40)
-                .opacity(0.55)
-                .clipped()
-            RemoteImage(id: id, variant: .display, contentMode: .fit, placeholder: .clear)
-        }
-        .containerRelativeFrame(.vertical) { height, _ in height * 0.58 }
-        .clipped()
+        Color(red: 0.08, green: 0.07, blue: 0.055)
+            .frame(maxWidth: .infinity)
+            .containerRelativeFrame(.vertical) { height, _ in height * 0.58 }
+            .overlay {
+                RemoteImage(id: id, variant: .thumb, placeholder: .clear)
+                    .blur(radius: 40)
+                    .opacity(0.55)
+            }
+            .overlay {
+                RemoteImage(id: id, variant: .display, contentMode: .fit, placeholder: .clear)
+                    .padding(8)
+            }
+            .clipped()
+            .contentShape(Rectangle())
+            .onTapGesture { zooming = true }
+            .overlay(alignment: .bottomTrailing) {
+                Button { zooming = true } label: {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .frame(width: 48, height: 48)
+                        .background(.black.opacity(0.45), in: Circle())
+                }
+                .padding(12)
+                .accessibilityLabel(model.strings.enlarge)
+            }
     }
 
     private func dateBlock(_ meta: PhotoMeta) -> some View {
@@ -79,14 +99,15 @@ struct PhotoDetailView: View {
         }
         return VStack(alignment: .leading, spacing: 6) {
             Text(s.formatDate(meta.takenAt)).font(.serif(.title))
-            HStack(spacing: 4) {
+            Group {
                 if let years = LocalDate.yearsAgo(meta.takenAt) {
-                    Text(s.yearsAgo(years)).fontWeight(.bold).foregroundStyle(model.theme.accent)
-                    Text("·")
+                    Text(s.yearsAgo(years)).fontWeight(.bold).foregroundStyle(model.theme.accent) + Text(" · \(note)")
+                } else {
+                    Text(note)
                 }
-                Text(note)
             }
             .foregroundStyle(model.theme.inkSoft)
+            .fixedSize(horizontal: false, vertical: true)
             Button { editingDate = true } label: { Label(s.changeDate, systemImage: "pencil") }
                 .buttonStyle(.bordered)
                 .padding(.top, 6)
