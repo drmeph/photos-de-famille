@@ -14,6 +14,22 @@ public enum Credentials: Codable, Equatable, Sendable {
     case none
 }
 
+extension Credentials {
+    /// When an Access token stops being accepted (its JWT `exp`); nil for other sign-ins.
+    public var expiry: Date? {
+        guard case let .accessToken(token) = self else { return nil }
+        let parts = token.split(separator: ".")
+        guard parts.count == 3 else { return nil }
+        var b64 = parts[1].replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        b64 += String(repeating: "=", count: (4 - b64.count % 4) % 4)
+        guard let data = Data(base64Encoded: b64),
+              let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let exp = payload["exp"] as? Double
+        else { return nil }
+        return Date(timeIntervalSince1970: exp)
+    }
+}
+
 public enum APIError: Error, Equatable {
     /// No valid session: Access redirected to its login page, or the password was refused.
     case signInRequired

@@ -118,6 +118,8 @@ public struct Strings: Sendable {
     public var loginTitle: String { s("Connexion à l’album", "Sign in to the album") }
     public var loginIntro: String { s("Entrez l’adresse de l’album de votre famille.", "Enter the address of your family’s album.") }
     public var albumAddress: String { s("Adresse de l’album", "Album address") }
+    public var loginAgain: String { s("Reconnectez-vous à l’album de votre famille.", "Sign in again to your family’s album.") }
+    public var otherAlbum: String { s("Utiliser un autre album", "Use another album") }
     public var connect: String { s("Se connecter", "Sign in") }
     public var familyPassword: String { s("Mot de passe de la famille", "Family password") }
     public var unreachable: String { s("Impossible de joindre cet album. Vérifiez l’adresse et la connexion.", "Can’t reach this album. Check the address and your connection.") }

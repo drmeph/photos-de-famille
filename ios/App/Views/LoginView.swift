@@ -7,7 +7,9 @@ struct LoginView: View {
     var message: String?
 
     @Environment(AppModel.self) private var model
-    @State private var address = SessionStore.lastAddress
+    /// The album signed in to before: only a "Sign in" button, no address to type again.
+    @State private var savedAlbum = SessionStore.albumURL
+    @State private var address = SessionStore.albumURL.map(SessionStore.display) ?? ""
     @State private var passwordFor: URL?
     @State private var name = ""
     @State private var password = ""
@@ -28,7 +30,10 @@ struct LoginView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.top, 40)
                 Text(s.loginTitle).font(.serif(.largeTitle)).frame(maxWidth: .infinity)
-                Text(s.loginIntro).foregroundStyle(model.theme.inkSoft).frame(maxWidth: .infinity)
+                Text(savedAlbum == nil ? s.loginIntro : s.loginAgain)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(model.theme.inkSoft)
+                    .frame(maxWidth: .infinity)
                 if let message {
                     Text(message)
                         .padding()
@@ -36,17 +41,28 @@ struct LoginView: View {
                         .background(model.theme.accentSoft, in: RoundedRectangle(cornerRadius: 14))
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(s.albumAddress).font(.subheadline.weight(.semibold)).foregroundStyle(model.theme.inkSoft)
-                    TextField("album-familial.pages.dev", text: $address)
-                        .textContentType(.URL)
-                        .keyboardType(.URL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .padding(14)
-                        .background(model.theme.card, in: RoundedRectangle(cornerRadius: 12))
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(model.theme.line, lineWidth: 1.5))
-                        .onChange(of: address) { _, _ in passwordFor = nil }
+                if let savedAlbum {
+                    VStack(spacing: 4) {
+                        Text(model.albumTitle).font(.serif(.title2))
+                        Text(SessionStore.display(savedAlbum)).font(.subheadline).foregroundStyle(model.theme.inkSoft)
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity)
+                    .background(model.theme.card, in: RoundedRectangle(cornerRadius: 16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(model.theme.line, lineWidth: 1.5))
+                } else {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(s.albumAddress).font(.subheadline.weight(.semibold)).foregroundStyle(model.theme.inkSoft)
+                        TextField("album-familial.pages.dev", text: $address)
+                            .textContentType(.URL)
+                            .keyboardType(.URL)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .padding(14)
+                            .background(model.theme.card, in: RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(model.theme.line, lineWidth: 1.5))
+                            .onChange(of: address) { _, _ in passwordFor = nil }
+                    }
                 }
 
                 if passwordFor != nil {
@@ -73,6 +89,17 @@ struct LoginView: View {
                 }
                 .buttonStyle(BigButtonStyle(color: model.theme.accent))
                 .disabled(busy || address.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                if savedAlbum != nil {
+                    Button(s.otherAlbum) {
+                        savedAlbum = nil
+                        passwordFor = nil
+                        error = nil
+                    }
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(model.theme.accent)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                }
             }
             .padding(24)
             .frame(maxWidth: 560)
@@ -97,7 +124,7 @@ struct LoginView: View {
     private func connect() async {
         let s = model.strings
         error = nil
-        guard let url = APIClient.albumURL(from: address) else {
+        guard let url = savedAlbum ?? APIClient.albumURL(from: address) else {
             error = s.unreachable
             return
         }

@@ -6,7 +6,16 @@ struct AlbumTimelineView: View {
     let onOpen: (TimelineEntry) -> Void
 
     @Environment(AppModel.self) private var model
-    @State private var topId: String?
+    /// The year at the top of the screen, highlighted in the year strip.
+    @State private var activeYear: String?
+
+    /// What the list shows. Switching sort or filters rebuilds the lazy stack instead of
+    /// diffing hundreds of photos in place: when two filter changes come quickly (tapping
+    /// people in the search sheet), the stack could keep showing the intermediate result.
+    private struct Content: Hashable {
+        var sort: SortMode
+        var filters: Filters
+    }
 
     var body: some View {
         let s = model.strings
@@ -16,36 +25,45 @@ struct AlbumTimelineView: View {
 
         GeometryReader { geo in
             let width = max(200, geo.size.width - 32)
+            // A year is "on screen" when it crosses this line, below the bars and year strip.
+            let probe = geo.size.height * 0.3
             ScrollViewReader { proxy in
+                // No .scrollPosition / .scrollTargetLayout here: with sections of very different
+                // heights they make the scroll view keep re-anchoring itself, which shows up
+                // on iOS as the whole page shaking from side to side.
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 28) {
-                        header.id("top")
+                        header
                         if model.timeline.isEmpty {
                             EmptyAlbumView()
                         } else if visible.isEmpty {
                             Text(s.noMatch).foregroundStyle(model.theme.inkSoft).frame(maxWidth: .infinity).padding(.top, 40)
                         }
                         ForEach(years) { year in
-                            YearSection(year: year, width: width, onOpen: onOpen).id(year.year)
+                            YearSection(year: year, width: width, onOpen: onOpen)
+                                .onGeometryChange(for: Bool.self) { g in
+                                    let frame = g.frame(in: .named(Self.space))
+                                    return frame.minY <= probe && frame.maxY > probe
+                                } action: { crossing in
+                                    if crossing { activeYear = year.year }
+                                }
+                                .id(year.year)
                         }
                         ForEach(days) { day in
                             DaySection(day: day, width: width, onOpen: onOpen).id(day.id)
                         }
                     }
-                    // Rebuilt on every filter change: when two changes come quickly (tapping
-                    // people in the search sheet) and the first resizes the header, the lazy
-                    // stack could keep showing the intermediate pills or photos.
-                    .id(model.filters)
-                    .scrollTargetLayout()
+                    .id(Content(sort: model.sort, filters: model.filters))
                     .padding(.horizontal, 16)
                     .padding(.bottom, 24)
                 }
-                .scrollPosition(id: $topId, anchor: .top)
+                .coordinateSpace(name: Self.space)
                 .refreshable { await model.loadAll() }
                 .safeAreaInset(edge: .top, spacing: 0) {
                     if years.count > 1 {
-                        let active = years.contains(where: { $0.year == topId }) ? topId ?? years[0].year : years[0].year
+                        let active = years.contains(where: { $0.year == activeYear }) ? activeYear ?? years[0].year : years[0].year
                         YearStrip(years: years.map(\.year), active: active) { year in
+                            activeYear = year
                             withAnimation { proxy.scrollTo(year, anchor: .top) }
                         }
                     }
@@ -54,6 +72,8 @@ struct AlbumTimelineView: View {
         }
         .background(model.theme.paper)
     }
+
+    private static let space = "timeline"
 
     @ViewBuilder private var header: some View {
         @Bindable var model = model
@@ -90,6 +110,8 @@ struct SortToggle: View {
             option(.date, s.sortDate, "calendar")
             option(.added, s.sortAdded, "clock")
         }
+        // Only the toggle slides; the list below is swapped without animating hundreds of photos.
+        .animation(.snappy, value: sort)
         .padding(4)
         .background(model.theme.paperDeep, in: Capsule())
         .overlay(Capsule().stroke(model.theme.line))
@@ -97,7 +119,7 @@ struct SortToggle: View {
 
     private func option(_ mode: SortMode, _ title: String, _ icon: String) -> some View {
         Button {
-            withAnimation(.snappy) { sort = mode }
+            sort = mode
         } label: {
             Label(title, systemImage: icon)
                 .font(.subheadline.weight(.semibold))
@@ -105,6 +127,7 @@ struct SortToggle: View {
                 .frame(minHeight: 44)
                 .foregroundStyle(sort == mode ? model.theme.accent : model.theme.inkSoft)
                 .background(sort == mode ? model.theme.card : .clear, in: Capsule())
+                .contentShape(Capsule()) // the whole pill is tappable, not just the text
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(sort == mode ? .isSelected : [])
@@ -177,14 +200,16 @@ struct YearStrip: View {
                                 .overlay(Capsule().stroke(year == active ? .clear : model.theme.line, lineWidth: 1.5))
                         }
                         .buttonStyle(.plain)
-                        .id(year)
+                        // Not just the year: the page's sections already use that id, and the
+                        // page's scroll reader would otherwise find the strip's pill too.
+                        .id("strip-\(year)")
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
             }
             .background(.bar)
-            .onChange(of: active) { _, year in withAnimation { proxy.scrollTo(year, anchor: .center) } }
+            .onChange(of: active) { _, year in withAnimation { proxy.scrollTo("strip-\(year)", anchor: .center) } }
         }
     }
 }

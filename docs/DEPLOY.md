@@ -85,6 +85,9 @@ remember, and you decide who gets in with a list of emails. Free for up to 50 pe
      `album-familial.pages.dev`, either by removing the `*` or by adding it as an extra
      hostname. Without this, the main address isn't behind the login.
    - **Session duration**: `1 month`, so relatives don't have to log in every week.
+     Also raise the **global session timeout** (*Zero Trust → Settings → Authentication*) to
+     the same: it's how long Access remembers someone between album sessions, and the iOS app
+     uses it to renew its sign-in without asking for a new email code.
    - **Login methods**: **One-time PIN** (the email code). It's on by default. If the login
      page doesn't offer to email a code, add it under *Integrations → Identity providers*
      (older dashboards: *Settings → Authentication → Login methods*).
