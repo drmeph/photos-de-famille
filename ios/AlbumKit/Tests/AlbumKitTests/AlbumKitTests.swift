@@ -189,3 +189,23 @@ final class ModelAndClientTests: XCTestCase {
         XCTAssertEqual(avatarHue("Claire"), avatarHue("Claire"))
     }
 }
+
+final class CredentialsTests: XCTestCase {
+    func token(_ payload: String) -> String {
+        let body = Data(payload.utf8).base64EncodedString()
+            .replacingOccurrences(of: "=", with: "").replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
+        return "eyJhbGciOiJSUzI1NiJ9.\(body).c2ln"
+    }
+
+    func testAccessTokenExpiry() {
+        let c = Credentials.accessToken(token(#"{"email":"léa@example.com","exp":1790000000}"#))
+        XCTAssertEqual(c.expiry, Date(timeIntervalSince1970: 1_790_000_000))
+    }
+
+    func testNoExpiryForOtherSignInsOrBadTokens() {
+        XCTAssertNil(Credentials.basic(name: "Léa", password: "x").expiry)
+        XCTAssertNil(Credentials.none.expiry)
+        XCTAssertNil(Credentials.accessToken("not-a-jwt").expiry)
+        XCTAssertNil(Credentials.accessToken(token(#"{"email":"a@b.c"}"#)).expiry)
+    }
+}

@@ -65,10 +65,17 @@ The simplest way is **TestFlight**, which needs the Apple Developer Program:
 - **Cloudflare Access:** the app opens the album's address in a web view. Access shows its usual
   page: email, then the 6-digit code. Once back on the album, the app reads the
   `CF_Authorization` cookie and keeps that token in the Keychain. It's sent with every request,
-  and checked by the server exactly like the website's. When it expires (the session duration set
-  in Access, e.g. a month), the app asks to sign in again.
+  and checked by the server exactly like the website's. Each token lasts as long as the
+  application's session duration in Access (e.g. a month). A few days before it runs out, or
+  when the server refuses it, the app quietly gets a new one by loading the album in a hidden
+  web view: Access remembers the sign-in there (its *global session*), so no email code is
+  needed. Only when Access itself has forgotten the sign-in does the app ask for the email code
+  again. Signing out in Settings forgets both.
 - **Shared password:** the app asks for a first name and the family password (HTTP Basic auth,
   like the website).
+- The album's address is asked only once. Signing in again (after signing out, or when Access
+  wants the email code again) shows the saved album with a single **Sign in** button;
+  **Use another album** brings the address field back.
 
 ## Code layout
 

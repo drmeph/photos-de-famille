@@ -42,6 +42,7 @@ final class AppModel {
         filters = Self.loadFilters()
         sort = SortMode(rawValue: UserDefaults.standard.string(forKey: "sort") ?? "") ?? .date
         if let saved = SessionStore.load() {
+            SessionStore.remember(saved.albumURL) // sessions saved by older versions
             client = APIClient(baseURL: saved.albumURL, credentials: saved.credentials)
             phase = .loading
         }
@@ -62,23 +63,72 @@ final class AppModel {
         return true
     }
 
-    func signOut(message: String? = nil) {
+    /// Signing out from Settings also forgets the web login; a session that ran out keeps it,
+    /// so Access may let the person straight back in.
+    func signOut(message: String? = nil, forgetWebLogin: Bool = true) {
         SessionStore.clear()
         client = nil
         timeline = []
         people = []
         members = [:]
         me = nil
-        config = .default
+        // `config` is kept: the sign-in screen still shows the family's title, color and
+        // language for the saved album. Signing in to another album loads its own.
         phase = .signedOut(message: message)
-        Task { await AccessLoginView.clearWebSession() }
+        if forgetWebLogin { Task { await AccessLoginView.clearWebSession() } }
+    }
+
+    @ObservationIgnored private var renewal: Task<Bool, Never>?
+    @ObservationIgnored private var lastRenewal: (at: Date, ok: Bool)?
+
+    /// Gets a new Access token without asking anything (see `AccessLoginView.renewToken`),
+    /// keeps it, and switches to it. False when Access wants the email code again.
+    func renewSession() async -> Bool {
+        if let renewal { return await renewal.value }
+        guard let current = client, case .accessToken = current.credentials else { return false }
+        // Several requests failing together, or a renewal that just failed: don't redo it.
+        if let last = lastRenewal, Date().timeIntervalSince(last.at) < (last.ok ? 30 : 600) { return last.ok }
+        let url = current.baseURL
+        let task = Task { @MainActor () -> Bool in
+            guard let token = await AccessLoginView.renewToken(for: url) else { return false }
+            let candidate = APIClient(baseURL: url, credentials: .accessToken(token))
+            guard (try? await candidate.me()) != nil, self.client === current else { return false }
+            self.client = candidate
+            SessionStore.save(SavedSession(albumURL: url, credentials: candidate.credentials))
+            return true
+        }
+        renewal = task
+        let ok = await task.value
+        renewal = nil
+        lastRenewal = (Date(), ok)
+        return ok
+    }
+
+    /// Renews ahead of time when the token runs out within a few days, while Access still
+    /// remembers the sign-in, rather than waiting for a refused request.
+    private func renewIfExpiringSoon() {
+        guard let expiry = client?.credentials.expiry, expiry.timeIntervalSinceNow < 3 * 24 * 3600 else { return }
+        Task { _ = await renewSession() }
+    }
+
+    /// The server refused the token: try renewing it quietly, and only then ask to sign in.
+    private func sessionRefused() async {
+        guard client != nil else { return }
+        if await renewSession() {
+            await loadAll(renewing: false)
+        } else if client != nil {
+            signOut(message: strings.sessionExpired, forgetWebLogin: false)
+        }
     }
 
     // MARK: Loading
 
     /// Loads (or refreshes) everything. Also used by pull-to-refresh and when the app comes back.
-    func loadAll() async {
+    func loadAll() async { await loadAll(renewing: true) }
+
+    private func loadAll(renewing: Bool) async {
         guard let client else { return }
+        if renewing { renewIfExpiringSoon() }
         do {
             async let configTask = client.config()
             async let timelineTask = client.timeline()
@@ -93,6 +143,9 @@ final class AppModel {
             self.me = me
             phase = .ready
             if photos.contains(where: { $0.u == nil || $0.b == nil }) { Task { await backfill() } }
+        } catch APIError.signInRequired {
+            // Stays on the loading screen meanwhile. Refused again with a renewed token: give up.
+            if renewing { await sessionRefused() } else { signOut(message: strings.sessionExpired, forgetWebLogin: false) }
         } catch {
             handle(error)
             if phase == .loading { phase = .failed }
@@ -111,10 +164,11 @@ final class AppModel {
         if let photos = try? await client.timeline() { timeline = photos }
     }
 
-    /// An expired session sends back to sign-in; other errors show a short message.
+    /// An expired session is renewed quietly if possible, else sends back to sign-in;
+    /// other errors show a short message.
     func handle(_ error: Error, quiet: Bool = false) {
         if case APIError.signInRequired = error {
-            signOut(message: strings.sessionExpired)
+            Task { await sessionRefused() }
         } else if !quiet {
             lastError = strings.errorGeneric
         }
